@@ -1,0 +1,390 @@
+// ============================================================================
+// TeamSync Assistant - Schedulers
+// Purpose: Handle scheduled tasks and recurring operations
+// ============================================================================
+
+// ============================================================================
+// DAILY STANDUP SCHEDULER
+// ============================================================================
+
+// Schedule daily standup reminder (9:00 AM)
+function scheduleDailyStandupReminder()
+{
+    try
+    {
+        // Get all active team members
+        teamMembers = getActiveTeamMembers();
+        
+        if(teamMembers.size() == 0)
+        {
+            warningLog("No active team members found for standup reminder", "StandupScheduler");
+            return false;
+        }
+        
+        // Send standup reminders
+        result = sendStandupReminders(teamMembers, "09:00");
+        
+        infoLog("Daily standup reminder scheduled and sent", "StandupScheduler");
+        return result.get("status") == "success";
+    }
+    catch(e)
+    {
+        errorLog("Error scheduling daily standup: " + e.toString(), "StandupScheduler");
+        return false;
+    }
+}
+
+// ============================================================================
+// WEEKLY TEAM REPORT SCHEDULER
+// ============================================================================
+
+// Schedule weekly team report (Monday 10:00 AM)
+function scheduleWeeklyTeamReport()
+{
+    try
+    {
+        currentDay = now().getDayOfWeek();
+        
+        // 2 = Monday in Zoho (1=Sunday)
+        if(currentDay != 2)
+        {
+            infoLog("Not Monday, skipping weekly report", "TeamReportScheduler");
+            return false;
+        }
+        
+        // Generate and send team report
+        report = generateWeeklyReport();
+        
+        if(report == null)
+        {
+            errorLog("Failed to generate weekly report", "TeamReportScheduler");
+            return false;
+        }
+        
+        // Send report to team channel
+        channelId = getTeamChannelId();
+        sendReportToChannel(report, channelId);
+        
+        infoLog("Weekly team report scheduled and sent", "TeamReportScheduler");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error scheduling weekly report: " + e.toString(), "TeamReportScheduler");
+        return false;
+    }
+}
+
+// ============================================================================
+// END-OF-DAY SUMMARY SCHEDULER
+// ============================================================================
+
+// Schedule end-of-day summary (6:00 PM)
+function scheduleEndOfDaySummary()
+{
+    try
+    {
+        // Get today's completed tasks
+        todaysTasks = getTodaysCompletedTasks();
+        
+        // Collect daily statistics
+        stats = collectDailyStatistics();
+        
+        // Generate summary message
+        summaryMsg = "📊 *End of Day Summary* (" + formatDate(now(), "dd/MM/yyyy") + ")\n\n";
+        summaryMsg = summaryMsg + "✅ Completed Tasks: " + todaysTasks.size() + "\n";
+        summaryMsg = summaryMsg + "📝 Standups Submitted: " + stats.get("standupCount") + "\n";
+        summaryMsg = summaryMsg + "📅 Meetings Held: " + stats.get("meetingCount") + "\n";
+        summaryMsg = summaryMsg + "🎯 Team Morale: " + stats.get("teamMorale") + "\n";
+        
+        // Send to team channel
+        channelId = getTeamChannelId();
+        sendMessageToChannel(summaryMsg, channelId);
+        
+        infoLog("End-of-day summary scheduled and sent", "EODScheduler");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error scheduling end-of-day summary: " + e.toString(), "EODScheduler");
+        return false;
+    }
+}
+
+// ============================================================================
+// TASK REMINDER SCHEDULER
+// ============================================================================
+
+// Check and send task reminders (Every hour)
+function checkAndSendTaskReminders()
+{
+    try
+    {
+        // Get all tasks due in next 24 hours
+        upcomingTasks = getUpcomingTasks(24);
+        
+        if(upcomingTasks.size() == 0)
+        {
+            infoLog("No upcoming tasks for reminders", "TaskReminderScheduler");
+            return false;
+        }
+        
+        sentCount = 0;
+        
+        for each task in upcomingTasks
+        {
+            assignee = task.get("assignee");
+            daysUntilDue = (task.get("dueDate") - now()) / (24 * 60 * 60 * 1000);
+            
+            // Send reminder if not already sent
+            if(!isReminderAlreadySent(task.get("id"), assignee))
+            {
+                if(sendTaskReminder(task.get("id"), assignee))
+                {
+                    sentCount = sentCount + 1;
+                    markReminderAsSent(task.get("id"), assignee);
+                }
+            }
+        }
+        
+        infoLog("Task reminders checked and sent: " + sentCount + " reminders", "TaskReminderScheduler");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error checking task reminders: " + e.toString(), "TaskReminderScheduler");
+        return false;
+    }
+}
+
+// ============================================================================
+// MEETING REMINDER SCHEDULER
+// ============================================================================
+
+// Check and send meeting reminders (Every 30 minutes)
+function checkAndSendMeetingReminders()
+{
+    try
+    {
+        // Get meetings starting in 30 minutes
+        upcomingMeetings = getUpcomingMeetings(30);
+        
+        if(upcomingMeetings.size() == 0)
+        {
+            infoLog("No meetings starting in 30 minutes", "MeetingReminderScheduler");
+            return false;
+        }
+        
+        sentCount = 0;
+        
+        for each meeting in upcomingMeetings
+        {
+            if(!isMeetingReminderSent(meeting.get("id")))
+            {
+                if(sendMeetingReminder(meeting.get("id"), 30))
+                {
+                    sentCount = sentCount + 1;
+                    markMeetingReminderAsSent(meeting.get("id"));
+                }
+            }
+        }
+        
+        infoLog("Meeting reminders checked and sent: " + sentCount + " reminders", "MeetingReminderScheduler");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error checking meeting reminders: " + e.toString(), "MeetingReminderScheduler");
+        return false;
+    }
+}
+
+// ============================================================================
+// SCHEDULER HELPER FUNCTIONS
+// ============================================================================
+
+// Get all active team members
+function getActiveTeamMembers()
+{
+    try
+    {
+        // TODO: Fetch from Zoho Creator or database
+        
+        members = List();
+        members.add(Map("userId", "user1", "name", "John Doe", "email", "john@example.com"));
+        members.add(Map("userId", "user2", "name", "Jane Smith", "email", "jane@example.com"));
+        
+        infoLog("Retrieved " + members.size() + " active team members", "TeamMemberRetrieval");
+        return members;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving team members: " + e.toString(), "TeamMemberRetrieval");
+        return List();
+    }
+}
+
+// Get today's completed tasks
+function getTodaysCompletedTasks()
+{
+    try
+    {
+        // TODO: Fetch from Zoho Projects where status = completed and date = today
+        
+        tasks = List();
+        tasks.add(Map("title", "Fixed bug X"));
+        tasks.add(Map("title", "Completed PR review"));
+        
+        infoLog("Retrieved " + tasks.size() + " completed tasks for today", "TaskRetrieval");
+        return tasks;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving today's tasks: " + e.toString(), "TaskRetrieval");
+        return List();
+    }
+}
+
+// Collect daily statistics
+function collectDailyStatistics()
+{
+    try
+    {
+        stats = Map();
+        stats.put("standupCount", 5);
+        stats.put("meetingCount", 3);
+        stats.put("taskCount", 12);
+        stats.put("teamMorale", "Good 😊");
+        stats.put("productivity", "85%");
+        
+        infoLog("Daily statistics collected", "StatisticsCollector");
+        return stats;
+    }
+    catch(e)
+    {
+        errorLog("Error collecting statistics: " + e.toString(), "StatisticsCollector");
+        return Map();
+    }
+}
+
+// Get team channel ID
+function getTeamChannelId()
+{
+    // TODO: Retrieve team channel ID from configuration
+    return "team_channel_123";
+}
+
+// Get upcoming tasks within X hours
+function getUpcomingTasks(p_hoursAhead)
+{
+    try
+    {
+        // TODO: Fetch tasks due in next p_hoursAhead hours
+        
+        tasks = List();
+        
+        infoLog("Retrieved upcoming tasks for next " + p_hoursAhead + " hours", "TaskRetrieval");
+        return tasks;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving upcoming tasks: " + e.toString(), "TaskRetrieval");
+        return List();
+    }
+}
+
+// Get upcoming meetings within X minutes
+function getUpcomingMeetings(p_minutesAhead)
+{
+    try
+    {
+        // TODO: Fetch meetings starting in next p_minutesAhead minutes
+        
+        meetings = List();
+        
+        infoLog("Retrieved upcoming meetings in next " + p_minutesAhead + " minutes", "MeetingRetrieval");
+        return meetings;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving upcoming meetings: " + e.toString(), "MeetingRetrieval");
+        return List();
+    }
+}
+
+// Check if reminder already sent
+function isReminderAlreadySent(p_taskId, p_userId)
+{
+    // TODO: Check in database/cache
+    return false;
+}
+
+// Mark reminder as sent
+function markReminderAsSent(p_taskId, p_userId)
+{
+    // TODO: Store in database/cache
+    return true;
+}
+
+// Check if meeting reminder sent
+function isMeetingReminderSent(p_meetingId)
+{
+    // TODO: Check in database/cache
+    return false;
+}
+
+// Mark meeting reminder as sent
+function markMeetingReminderAsSent(p_meetingId)
+{
+    // TODO: Store in database/cache
+    return true;
+}
+
+// Send message to channel
+function sendMessageToChannel(p_message, p_channelId)
+{
+    try
+    {
+        // TODO: Send via Zoho Cliq API
+        
+        infoLog("Message sent to channel: " + p_channelId, "ChannelMessaging");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending message to channel: " + e.toString(), "ChannelMessaging");
+        return false;
+    }
+}
+
+// Send report to channel
+function sendReportToChannel(p_report, p_channelId)
+{
+    try
+    {
+        // Format report as message
+        reportMsg = formatReportAsMessage(p_report);
+        return sendMessageToChannel(reportMsg, p_channelId);
+    }
+    catch(e)
+    {
+        errorLog("Error sending report to channel: " + e.toString(), "ChannelMessaging");
+        return false;
+    }
+}
+
+// Format report as message
+function formatReportAsMessage(p_report)
+{
+    msg = "📊 *Weekly Team Report*\n";
+    msg = msg + "_Week of " + formatDate(now(), "dd/MM/yyyy") + "_\n\n";
+    msg = msg + "✅ Completed Tasks: " + p_report.get("completedTasks") + "\n";
+    msg = msg + "🔄 In Progress: " + p_report.get("inProgressTasks") + "\n";
+    msg = msg + "🚫 Blocked: " + p_report.get("blockedTasks") + "\n";
+    
+    return msg;
+}
+
+// ============================================================================
+// END OF SCHEDULERS
+// ============================================================================

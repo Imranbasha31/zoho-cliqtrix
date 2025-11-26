@@ -1,0 +1,506 @@
+// ============================================================================
+// TeamSync Assistant - Team Analytics
+// Purpose: Generate insights and analytics for team performance
+// ============================================================================
+
+// ============================================================================
+// MAIN ANALYTICS ENGINE
+// ============================================================================
+
+// Generate comprehensive team analytics
+function generateTeamAnalytics(p_teamId, p_periodDays)
+{
+    try
+    {
+        if(isEmpty(p_periodDays))
+        {
+            p_periodDays = 7; // Default to weekly
+        }
+        
+        infoLog("Generating team analytics for " + p_periodDays + " days", "TeamAnalytics");
+        
+        // Collect all metrics
+        analytics = Map();
+        analytics.put("teamId", p_teamId);
+        analytics.put("period", p_periodDays + " days");
+        analytics.put("generatedAt", now());
+        
+        // Task metrics
+        taskMetrics = analyzeTaskMetrics(p_teamId, p_periodDays);
+        analytics.put("taskMetrics", taskMetrics);
+        
+        // Meeting metrics
+        meetingMetrics = analyzeMeetingMetrics(p_teamId, p_periodDays);
+        analytics.put("meetingMetrics", meetingMetrics);
+        
+        // Standup metrics
+        standupMetrics = analyzeStandupMetrics(p_teamId, p_periodDays);
+        analytics.put("standupMetrics", standupMetrics);
+        
+        // Team productivity score
+        productivityScore = calculateProductivityScore(taskMetrics, meetingMetrics, standupMetrics);
+        analytics.put("productivityScore", productivityScore);
+        
+        // Team morale
+        teamMorale = analyzeTeamMorale(p_teamId, p_periodDays);
+        analytics.put("teamMorale", teamMorale);
+        
+        // Bottlenecks
+        bottlenecks = identifyBottlenecks(p_teamId, p_periodDays);
+        analytics.put("bottlenecks", bottlenecks);
+        
+        // Recommendations
+        recommendations = generateRecommendations(analytics);
+        analytics.put("recommendations", recommendations);
+        
+        infoLog("Team analytics generated successfully", "TeamAnalytics");
+        return analytics;
+    }
+    catch(e)
+    {
+        errorLog("Error generating team analytics: " + e.toString(), "TeamAnalytics");
+        return null;
+    }
+}
+
+// ============================================================================
+// TASK METRICS ANALYSIS
+// ============================================================================
+
+// Analyze task-related metrics
+function analyzeTaskMetrics(p_teamId, p_periodDays)
+{
+    try
+    {
+        tasks = getTeamTasks(p_teamId, "all");
+        
+        totalTasks = tasks.size();
+        completedTasks = 0;
+        inProgressTasks = 0;
+        blockedTasks = 0;
+        overdueTasks = 0;
+        
+        totalEstimatedHours = 0;
+        totalActualHours = 0;
+        
+        highPriorityCompleted = 0;
+        highPriorityTotal = 0;
+        
+        today = now();
+        periodStart = today.addDay(0 - p_periodDays);
+        
+        for each task in tasks
+        {
+            status = task.get("status");
+            priority = task.get("priority");
+            dueDate = task.get("dueDate");
+            
+            if(status == "completed")
+            {
+                completedTasks = completedTasks + 1;
+            }
+            else if(status == "in_progress")
+            {
+                inProgressTasks = inProgressTasks + 1;
+            }
+            else if(status == "blocked")
+            {
+                blockedTasks = blockedTasks + 1;
+            }
+            
+            if(!isEmpty(dueDate) && dueDate < today && status != "completed")
+            {
+                overdueTasks = overdueTasks + 1;
+            }
+            
+            if(priority == "high")
+            {
+                highPriorityTotal = highPriorityTotal + 1;
+                if(status == "completed")
+                {
+                    highPriorityCompleted = highPriorityCompleted + 1;
+                }
+            }
+            
+            totalEstimatedHours = totalEstimatedHours + (isEmpty(task.get("estimatedHours")) ? 0 : task.get("estimatedHours"));
+            totalActualHours = totalActualHours + (isEmpty(task.get("actualHours")) ? 0 : task.get("actualHours"));
+        }
+        
+        completionRate = (totalTasks > 0) ? (completedTasks / totalTasks * 100).toInteger() : 0;
+        efficiency = (totalEstimatedHours > 0) ? (totalActualHours / totalEstimatedHours * 100).toInteger() : 100;
+        highPriorityRate = (highPriorityTotal > 0) ? (highPriorityCompleted / highPriorityTotal * 100).toInteger() : 0;
+        
+        metrics = Map();
+        metrics.put("totalTasks", totalTasks);
+        metrics.put("completedTasks", completedTasks);
+        metrics.put("inProgressTasks", inProgressTasks);
+        metrics.put("blockedTasks", blockedTasks);
+        metrics.put("overdueTasks", overdueTasks);
+        metrics.put("completionRate", completionRate + "%");
+        metrics.put("efficiency", efficiency + "%");
+        metrics.put("highPriorityCompletionRate", highPriorityRate + "%");
+        metrics.put("totalEstimatedHours", totalEstimatedHours);
+        metrics.put("totalActualHours", totalActualHours);
+        
+        infoLog("Task metrics analyzed: " + completionRate + "% completion rate", "TaskAnalytics");
+        return metrics;
+    }
+    catch(e)
+    {
+        errorLog("Error analyzing task metrics: " + e.toString(), "TaskAnalytics");
+        return Map();
+    }
+}
+
+// ============================================================================
+// MEETING METRICS ANALYSIS
+// ============================================================================
+
+// Analyze meeting-related metrics
+function analyzeMeetingMetrics(p_teamId, p_periodDays)
+{
+    try
+    {
+        // TODO: Fetch meetings from calendar for period
+        
+        totalMeetings = 5;
+        totalMeetingHours = 8;
+        avgMeetingDuration = 1.6; // hours
+        timeWastedInMeetings = 2; // hours
+        
+        metrics = Map();
+        metrics.put("totalMeetings", totalMeetings);
+        metrics.put("totalMeetingHours", totalMeetingHours);
+        metrics.put("averageMeetingDuration", avgMeetingDuration + " hours");
+        metrics.put("timeWastedInMeetings", timeWastedInMeetings + " hours");
+        metrics.put("focusTimePercentage", "60%");
+        
+        infoLog("Meeting metrics analyzed: " + totalMeetings + " meetings", "MeetingAnalytics");
+        return metrics;
+    }
+    catch(e)
+    {
+        errorLog("Error analyzing meeting metrics: " + e.toString(), "MeetingAnalytics");
+        return Map();
+    }
+}
+
+// ============================================================================
+// STANDUP METRICS ANALYSIS
+// ============================================================================
+
+// Analyze standup-related metrics
+function analyzeStandupMetrics(p_teamId, p_periodDays)
+{
+    try
+    {
+        // TODO: Fetch standups for period
+        
+        totalStandups = 5;
+        submittedOnTime = 4;
+        averageSentiment = "positive";
+        commonBlockers = List("External dependencies", "Waiting for design");
+        
+        submissionRate = (submittedOnTime / totalStandups * 100).toInteger();
+        
+        metrics = Map();
+        metrics.put("totalStandups", totalStandups);
+        metrics.put("submittedOnTime", submittedOnTime);
+        metrics.put("submissionRate", submissionRate + "%");
+        metrics.put("averageSentiment", averageSentiment);
+        metrics.put("commonBlockers", commonBlockers);
+        
+        infoLog("Standup metrics analyzed: " + submissionRate + "% submission rate", "StandupAnalytics");
+        return metrics;
+    }
+    catch(e)
+    {
+        errorLog("Error analyzing standup metrics: " + e.toString(), "StandupAnalytics");
+        return Map();
+    }
+}
+
+// ============================================================================
+// PRODUCTIVITY SCORING
+// ============================================================================
+
+// Calculate overall productivity score
+function calculateProductivityScore(p_taskMetrics, p_meetingMetrics, p_standupMetrics)
+{
+    try
+    {
+        score = 0;
+        
+        // Task completion score (0-40 points)
+        completionRate = p_taskMetrics.get("completionRate").replaceAll("%", "").toInteger();
+        score = score + (completionRate * 0.4);
+        
+        // Efficiency score (0-30 points)
+        efficiency = p_taskMetrics.get("efficiency").replaceAll("%", "").toInteger();
+        score = score + (efficiency * 0.3);
+        
+        // Standup score (0-20 points)
+        submissionRate = p_standupMetrics.get("submissionRate").replaceAll("%", "").toInteger();
+        score = score + (submissionRate * 0.2);
+        
+        // Focus time score (0-10 points)
+        focusTime = p_meetingMetrics.get("focusTimePercentage").replaceAll("%", "").toInteger();
+        score = score + (focusTime * 0.1);
+        
+        productivityScore = score.toInteger();
+        
+        infoLog("Productivity score calculated: " + productivityScore, "ProductivityScoring");
+        return productivityScore;
+    }
+    catch(e)
+    {
+        errorLog("Error calculating productivity score: " + e.toString(), "ProductivityScoring");
+        return 0;
+    }
+}
+
+// ============================================================================
+// MORALE ANALYSIS
+// ============================================================================
+
+// Analyze team morale
+function analyzeTeamMorale(p_teamId, p_periodDays)
+{
+    try
+    {
+        standups = getStandupsForDate(now());
+        
+        positiveCount = 0;
+        neutralCount = 0;
+        negativeCount = 0;
+        
+        for each standup in standups
+        {
+            sentiment = standup.get("sentiment");
+            
+            if(sentiment == "positive")
+            {
+                positiveCount = positiveCount + 1;
+            }
+            else if(sentiment == "neutral")
+            {
+                neutralCount = neutralCount + 1;
+            }
+            else
+            {
+                negativeCount = negativeCount + 1;
+            }
+        }
+        
+        totalStandups = standups.size();
+        positivePercentage = (totalStandups > 0) ? (positiveCount / totalStandups * 100).toInteger() : 0;
+        
+        morale = Map();
+        morale.put("positive", positiveCount);
+        morale.put("neutral", neutralCount);
+        morale.put("negative", negativeCount);
+        morale.put("positivePercentage", positivePercentage + "%");
+        
+        if(positivePercentage > 70)
+        {
+            morale.put("overallMorale", "Excellent 😄");
+        }
+        else if(positivePercentage > 50)
+        {
+            morale.put("overallMorale", "Good 😊");
+        }
+        else if(positivePercentage > 30)
+        {
+            morale.put("overallMorale", "Neutral 😐");
+        }
+        else
+        {
+            morale.put("overallMorale", "Concerning 😟");
+        }
+        
+        infoLog("Team morale analyzed: " + morale.get("overallMorale"), "MoraleAnalysis");
+        return morale;
+    }
+    catch(e)
+    {
+        errorLog("Error analyzing team morale: " + e.toString(), "MoraleAnalysis");
+        return Map();
+    }
+}
+
+// ============================================================================
+// BOTTLENECK IDENTIFICATION
+// ============================================================================
+
+// Identify project bottlenecks
+function identifyBottlenecks(p_teamId, p_periodDays)
+{
+    try
+    {
+        bottlenecks = List();
+        
+        // Get overdue tasks
+        overdueTasks = getOverdueTasks(p_teamId);
+        if(overdueTasks.size() > 0)
+        {
+            bottlenecks.add(Map("type", "overdue_tasks", "severity", "high", "count", overdueTasks.size(), "description", overdueTasks.size() + " tasks are overdue"));
+        }
+        
+        // Get blocked tasks
+        tasks = getTeamTasks(p_teamId, "all");
+        blockedTasks = filterList(tasks, "status", "blocked");
+        if(blockedTasks.size() > 0)
+        {
+            bottlenecks.add(Map("type", "blocked_tasks", "severity", "high", "count", blockedTasks.size(), "description", blockedTasks.size() + " tasks are blocked"));
+        }
+        
+        // Get common blockers from standups
+        commonBlockers = getCommonBlockers(p_teamId, p_periodDays);
+        if(commonBlockers.size() > 0)
+        {
+            bottlenecks.add(Map("type", "common_blockers", "severity", "medium", "items", commonBlockers));
+        }
+        
+        infoLog("Identified " + bottlenecks.size() + " bottlenecks", "BottleneckAnalysis");
+        return bottlenecks;
+    }
+    catch(e)
+    {
+        errorLog("Error identifying bottlenecks: " + e.toString(), "BottleneckAnalysis");
+        return List();
+    }
+}
+
+// Get common blockers from standups
+function getCommonBlockers(p_teamId, p_periodDays)
+{
+    try
+    {
+        standups = getStandupsForDate(now());
+        blockerMap = Map();
+        
+        for each standup in standups
+        {
+            blocker = standup.get("blockers");
+            if(!isEmpty(blocker))
+            {
+                if(blockerMap.has(blocker))
+                {
+                    blockerMap.put(blocker, blockerMap.get(blocker) + 1);
+                }
+                else
+                {
+                    blockerMap.put(blocker, 1);
+                }
+            }
+        }
+        
+        // Return top blockers
+        topBlockers = List();
+        for each blocker in blockerMap.keySet()
+        {
+            if(blockerMap.get(blocker) >= 2)
+            {
+                topBlockers.add(Map("blocker", blocker, "count", blockerMap.get(blocker)));
+            }
+        }
+        
+        return topBlockers;
+    }
+    catch(e)
+    {
+        errorLog("Error getting common blockers: " + e.toString(), "BottleneckAnalysis");
+        return List();
+    }
+}
+
+// ============================================================================
+// RECOMMENDATIONS ENGINE
+// ============================================================================
+
+// Generate recommendations based on analytics
+function generateRecommendations(p_analytics)
+{
+    try
+    {
+        recommendations = List();
+        
+        // Task metrics recommendations
+        taskMetrics = p_analytics.get("taskMetrics");
+        if(taskMetrics != null)
+        {
+            completionRate = taskMetrics.get("completionRate").replaceAll("%", "").toInteger();
+            
+            if(completionRate < 50)
+            {
+                recommendations.add("Consider breaking down larger tasks into smaller, manageable units");
+            }
+            
+            overdueTasks = taskMetrics.get("overdueTasks");
+            if(overdueTasks > 0)
+            {
+                recommendations.add("Focus on completing " + overdueTasks + " overdue tasks to improve overall progress");
+            }
+        }
+        
+        // Morale recommendations
+        morale = p_analytics.get("teamMorale");
+        if(morale != null)
+        {
+            overallMorale = morale.get("overallMorale");
+            
+            if(overallMorale.contains("Concerning") || overallMorale.contains("Neutral"))
+            {
+                recommendations.add("Consider team building activities to boost morale");
+                recommendations.add("Have one-on-ones with team members to understand challenges");
+            }
+        }
+        
+        // Bottleneck recommendations
+        bottlenecks = p_analytics.get("bottlenecks");
+        if(bottlenecks != null && bottlenecks.size() > 0)
+        {
+            for each bottleneck in bottlenecks
+            {
+                if(bottleneck.get("type") == "common_blockers")
+                {
+                    recommendations.add("Address common blockers: " + bottleneck.get("items").toString());
+                }
+            }
+        }
+        
+        infoLog("Generated " + recommendations.size() + " recommendations", "RecommendationEngine");
+        return recommendations;
+    }
+    catch(e)
+    {
+        errorLog("Error generating recommendations: " + e.toString(), "RecommendationEngine");
+        return List();
+    }
+}
+
+// ============================================================================
+// HELPER FUNCTION FOR SENDING NOTIFICATIONS
+// ============================================================================
+
+// Send Cliq notification (placeholder - implement with actual Cliq API)
+function sendCliqNotification(p_userId, p_message)
+{
+    try
+    {
+        // TODO: Implement actual Cliq notification sending
+        // This would use Zoho Cliq API to send DM or channel message
+        
+        infoLog("Notification sent to user: " + p_userId, "CliqNotification");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending Cliq notification: " + e.toString(), "CliqNotification");
+        return false;
+    }
+}
+
+// ============================================================================
+// END OF TEAM ANALYTICS
+// ============================================================================

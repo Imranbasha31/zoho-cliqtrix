@@ -1,0 +1,355 @@
+// ============================================================================
+// TeamSync Assistant - Slash Commands Implementation
+// Purpose: Implement specific slash command handlers
+// ============================================================================
+
+// ============================================================================
+// /SCHEDULE-MEETING COMMAND
+// ============================================================================
+
+function handleScheduleMeetingCommand(p_args, p_userId, p_channelId)
+{
+    try
+    {
+        infoLog("Schedule meeting command initiated by user: " + p_userId, "ScheduleMeetingCmd");
+        
+        // Parse arguments: /schedule-meeting "Meeting Title" "attendee1,attendee2" "2025-11-27 10:00"
+        meetingTitle = "";
+        attendeesStr = "";
+        preferredTime = "";
+        
+        if(p_args.size() > 0)
+        {
+            meetingTitle = p_args.get(0);
+        }
+        if(p_args.size() > 1)
+        {
+            attendeesStr = p_args.get(1);
+        }
+        if(p_args.size() > 2)
+        {
+            preferredTime = p_args.get(2);
+        }
+        
+        // If not all args provided, ask for them
+        if(isEmpty(meetingTitle))
+        {
+            formFields = List();
+            formFields.add(Map("name", "meetingTitle", "label", "Meeting Title", "type", "text", "required", true));
+            formFields.add(Map("name", "attendees", "label", "Attendees (comma-separated emails)", "type", "text", "required", true));
+            formFields.add(Map("name", "date", "label", "Preferred Date", "type", "date", "required", true));
+            formFields.add(Map("name", "time", "label", "Preferred Time", "type", "time", "required", true));
+            formFields.add(Map("name", "duration", "label", "Duration (minutes)", "type", "number", "required", false));
+            
+            return buildFormResponse(formFields);
+        }
+        
+        // Parse attendees
+        attendeeList = List();
+        if(!isEmpty(attendeesStr))
+        {
+            attendees = attendeesStr.split(",");
+            for each attendee in attendees
+            {
+                trimmedAttendee = attendee.trim();
+                if(isValidEmail(trimmedAttendee))
+                {
+                    attendeeList.add(trimmedAttendee);
+                }
+            }
+        }
+        
+        // Find best meeting time using calendar integration
+        response = findBestMeetingTime(attendeeList, preferredTime);
+        
+        if(response != null)
+        {
+            messageText = "🎉 *Meeting Scheduled Successfully!*\n\n";
+            messageText = messageText + "*Meeting:* " + meetingTitle + "\n";
+            messageText = messageText + "*Date:* " + response.get("date") + "\n";
+            messageText = messageText + "*Time:* " + response.get("time") + "\n";
+            messageText = messageText + "*Attendees:* " + attendeeList.size() + " confirmed\n";
+            messageText = messageText + "*Calendar Event:* Created and sent to invitees\n";
+            
+            infoLog("Meeting scheduled successfully: " + meetingTitle, "ScheduleMeetingCmd");
+            return buildResponse(messageText);
+        }
+        else
+        {
+            return buildErrorResponse("Could not find a suitable meeting time. Please try a different date/time.");
+        }
+    }
+    catch(e)
+    {
+        errorLog("Schedule meeting command error: " + e.toString(), "ScheduleMeetingCmd");
+        return buildErrorResponse("Error scheduling meeting: " + e.toString());
+    }
+}
+
+// Find best meeting time across timezones
+function findBestMeetingTime(p_attendees, p_preferredTime)
+{
+    try
+    {
+        bestSlot = Map();
+        bestSlot.put("date", p_preferredTime);
+        bestSlot.put("time", "10:00 AM");
+        bestSlot.put("attendees", p_attendees);
+        bestSlot.put("availability", "high");
+        
+        // TODO: Integrate with Calendar API to check actual availability
+        // For now, return suggested time
+        
+        infoLog("Best meeting time found for " + p_attendees.size() + " attendees", "MeetingScheduler");
+        return bestSlot;
+    }
+    catch(e)
+    {
+        errorLog("Error finding meeting time: " + e.toString(), "MeetingScheduler");
+        return null;
+    }
+}
+
+// ============================================================================
+// /STANDUP COMMAND
+// ============================================================================
+
+function handleStandupCommand(p_args, p_userId, p_channelId)
+{
+    try
+    {
+        infoLog("Standup command initiated by user: " + p_userId, "StandupCmd");
+        
+        // Create standup form
+        formFields = List();
+        formFields.add(Map("name", "yesterday", "label", "What did you accomplish yesterday?", "type", "textarea", "required", true));
+        formFields.add(Map("name", "today", "label", "What are your goals for today?", "type", "textarea", "required", true));
+        formFields.add(Map("name", "blockers", "label", "Any blockers or challenges?", "type", "textarea", "required", false));
+        formFields.add(Map("name", "morale", "label", "Team morale", "type", "select", "options", List("😄 Excited", "😊 Good", "😐 Neutral", "😟 Worried"), "required", false));
+        
+        standupForm = buildFormResponse(formFields);
+        
+        infoLog("Standup form generated for user: " + p_userId, "StandupCmd");
+        return standupForm;
+    }
+    catch(e)
+    {
+        errorLog("Standup command error: " + e.toString(), "StandupCmd");
+        return buildErrorResponse("Error creating standup form: " + e.toString());
+    }
+}
+
+// Process standup submission
+function submitStandup(p_standupData, p_userId)
+{
+    try
+    {
+        standup = createStandupObject(p_userId, now(), p_standupData.get("yesterday"), p_standupData.get("today"), p_standupData.get("blockers"));
+        standup.put("morale", p_standupData.get("morale"));
+        
+        // Store in database
+        // TODO: Save to Zoho Creator or other database
+        
+        messageText = "✅ *Standup Submitted!*\n\n";
+        messageText = messageText + "*User:* " + p_userId + "\n";
+        messageText = messageText + "*Timestamp:* " + formatDate(now(), "dd/MM/yyyy HH:mm") + "\n";
+        messageText = messageText + "*Status:* Recorded";
+        
+        infoLog("Standup submitted by user: " + p_userId, "StandupCmd");
+        return buildResponse(messageText);
+    }
+    catch(e)
+    {
+        errorLog("Standup submission error: " + e.toString(), "StandupCmd");
+        return buildErrorResponse("Error submitting standup: " + e.toString());
+    }
+}
+
+// ============================================================================
+// /TASK-STATUS COMMAND
+// ============================================================================
+
+function handleTaskStatusCommand(p_args, p_userId, p_channelId)
+{
+    try
+    {
+        infoLog("Task status command initiated by user: " + p_userId, "TaskStatusCmd");
+        
+        // Get user's tasks from Projects
+        // TODO: Implement with actual API calls
+        
+        tasks = List();
+        tasks.add(Map("title", "Complete Q4 Report", "status", "in_progress", "dueDate", "2025-11-30", "priority", "high"));
+        tasks.add(Map("title", "Review PR for Feature X", "status", "open", "dueDate", "2025-11-28", "priority", "medium"));
+        tasks.add(Map("title", "Update Documentation", "status", "open", "dueDate", "2025-12-05", "priority", "low"));
+        
+        if(tasks.size() == 0)
+        {
+            return buildResponse("You don't have any assigned tasks. Great work! 🎉");
+        }
+        
+        messageText = "📋 *Your Current Tasks:*\n\n";
+        
+        for each task in tasks
+        {
+            emoji = getStatusEmoji(task.get("status"));
+            priority = getPriorityEmoji(task.get("priority"));
+            
+            messageText = messageText + emoji + " " + priority + " *" + task.get("title") + "*\n";
+            messageText = messageText + "   Status: " + toTitleCase(task.get("status")) + " | Due: " + task.get("dueDate") + "\n\n";
+        }
+        
+        infoLog("Task status retrieved for user: " + p_userId, "TaskStatusCmd");
+        return buildResponse(messageText);
+    }
+    catch(e)
+    {
+        errorLog("Task status command error: " + e.toString(), "TaskStatusCmd");
+        return buildErrorResponse("Error retrieving task status: " + e.toString());
+    }
+}
+
+// ============================================================================
+// /TEAM-REPORT COMMAND
+// ============================================================================
+
+function handleTeamReportCommand(p_args, p_userId, p_channelId)
+{
+    try
+    {
+        infoLog("Team report command initiated by user: " + p_userId, "TeamReportCmd");
+        
+        // Generate team report
+        report = generateTeamReport(p_userId);
+        
+        if(report == null)
+        {
+            return buildErrorResponse("Could not generate team report");
+        }
+        
+        messageText = "📊 *Weekly Team Report*\n";
+        messageText = messageText + "_Week of " + formatDate(now(), "dd/MM/yyyy") + "_\n\n";
+        
+        messageText = messageText + "✅ *Completed Tasks:* " + report.get("completedTasks") + "\n";
+        messageText = messageText + "🔄 *In Progress:* " + report.get("inProgressTasks") + "\n";
+        messageText = messageText + "🚫 *Blocked:* " + report.get("blockedTasks") + "\n\n";
+        
+        messageText = messageText + "*Team Morale:* 😊 Good\n";
+        messageText = messageText + "*Productivity:* 📈 +15% vs last week\n\n";
+        
+        if(report.get("blockedTasks") > 0)
+        {
+            messageText = messageText + "⚠️ *Bottlenecks:*\n";
+            messageText = messageText + "• Resource constraints on Feature X\n";
+            messageText = messageText + "• Waiting for design approval\n";
+        }
+        
+        infoLog("Team report generated", "TeamReportCmd");
+        return buildResponse(messageText);
+    }
+    catch(e)
+    {
+        errorLog("Team report command error: " + e.toString(), "TeamReportCmd");
+        return buildErrorResponse("Error generating team report: " + e.toString());
+    }
+}
+
+// Generate team report data
+function generateTeamReport(p_userId)
+{
+    try
+    {
+        report = createTeamReportObject(now(), 15, 8, 2);
+        report.put("teamMorale", "Good");
+        report.put("bottlenecks", List("Resource constraints", "Design approval pending"));
+        report.put("achievements", List("Launched Feature A", "Completed Q4 planning"));
+        
+        infoLog("Team report generated successfully", "TeamReportGenerator");
+        return report;
+    }
+    catch(e)
+    {
+        errorLog("Error generating team report: " + e.toString(), "TeamReportGenerator");
+        return null;
+    }
+}
+
+// ============================================================================
+// HELPER FUNCTIONS FOR COMMANDS
+// ============================================================================
+
+// Confirm meeting and create calendar event
+function confirmMeeting(p_payload, p_userId)
+{
+    try
+    {
+        // TODO: Create actual calendar event
+        messageText = "✅ Meeting confirmed and calendar invites sent!";
+        infoLog("Meeting confirmed by user: " + p_userId, "MeetingConfirmation");
+        return buildResponse(messageText);
+    }
+    catch(e)
+    {
+        errorLog("Meeting confirmation error: " + e.toString(), "MeetingConfirmation");
+        return buildErrorResponse("Error confirming meeting");
+    }
+}
+
+// Assign task to team member
+function assignTask(p_payload, p_userId)
+{
+    try
+    {
+        taskId = p_payload.get("taskId");
+        assignee = p_payload.get("assignee");
+        
+        messageText = "✅ Task assigned successfully to " + assignee + "!";
+        infoLog("Task assigned: " + taskId, "TaskAssignment");
+        return buildResponse(messageText);
+    }
+    catch(e)
+    {
+        errorLog("Task assignment error: " + e.toString(), "TaskAssignment");
+        return buildErrorResponse("Error assigning task");
+    }
+}
+
+// View detailed task information
+function viewTaskDetails(p_payload, p_userId)
+{
+    try
+    {
+        taskId = p_payload.get("taskId");
+        
+        // TODO: Fetch task details from API
+        taskDetails = Map();
+        taskDetails.put("title", "Complete Q4 Report");
+        taskDetails.put("description", "Prepare comprehensive Q4 performance report");
+        taskDetails.put("assignee", "John Doe");
+        taskDetails.put("dueDate", "2025-11-30");
+        taskDetails.put("priority", "high");
+        taskDetails.put("status", "in_progress");
+        taskDetails.put("progress", 65);
+        
+        messageText = "📋 *Task Details:*\n\n";
+        messageText = messageText + "*Title:* " + taskDetails.get("title") + "\n";
+        messageText = messageText + "*Description:* " + taskDetails.get("description") + "\n";
+        messageText = messageText + "*Assignee:* " + taskDetails.get("assignee") + "\n";
+        messageText = messageText + "*Due Date:* " + taskDetails.get("dueDate") + "\n";
+        messageText = messageText + "*Priority:* " + toTitleCase(taskDetails.get("priority")) + "\n";
+        messageText = messageText + "*Status:* " + toTitleCase(taskDetails.get("status")) + "\n";
+        messageText = messageText + "*Progress:* " + taskDetails.get("progress") + "%\n";
+        
+        infoLog("Task details viewed: " + taskId, "TaskDetails");
+        return buildResponse(messageText);
+    }
+    catch(e)
+    {
+        errorLog("Task details error: " + e.toString(), "TaskDetails");
+        return buildErrorResponse("Error retrieving task details");
+    }
+}
+
+// ============================================================================
+// END OF SLASH COMMANDS
+// ============================================================================

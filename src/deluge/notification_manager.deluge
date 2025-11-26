@@ -1,0 +1,386 @@
+// ============================================================================
+// TeamSync Assistant - Notification Manager
+// Purpose: Handle all notifications and messaging
+// ============================================================================
+
+// ============================================================================
+// NOTIFICATION SENDING
+// ============================================================================
+
+// Send notification to user
+function sendNotification(p_notification)
+{
+    try
+    {
+        if(!validateNotification(p_notification))
+        {
+            errorLog("Invalid notification object", "NotificationManager");
+            return false;
+        }
+        
+        userId = p_notification.get("userId");
+        notificationType = p_notification.get("type");
+        title = p_notification.get("title");
+        message = p_notification.get("message");
+        
+        // Format message
+        formattedMsg = "*" + title + "*\n" + message;
+        
+        if(!isEmpty(p_notification.get("actionUrl")))
+        {
+            formattedMsg = formattedMsg + "\n[View Details](" + p_notification.get("actionUrl") + ")";
+        }
+        
+        // Send via Cliq
+        result = sendCliqMessage(userId, formattedMsg, notificationType);
+        
+        if(result)
+        {
+            p_notification.put("sentAt", now());
+            p_notification.put("status", "sent");
+            
+            infoLog("Notification sent successfully to user: " + userId, "NotificationManager");
+        }
+        
+        return result;
+    }
+    catch(e)
+    {
+        errorLog("Error sending notification: " + e.toString(), "NotificationManager");
+        return false;
+    }
+}
+
+// Send bulk notifications
+function sendBulkNotifications(p_notifications)
+{
+    try
+    {
+        sentCount = 0;
+        failedCount = 0;
+        
+        for each notification in p_notifications
+        {
+            if(sendNotification(notification))
+            {
+                sentCount = sentCount + 1;
+            }
+            else
+            {
+                failedCount = failedCount + 1;
+            }
+        }
+        
+        infoLog("Bulk notifications sent: " + sentCount + " success, " + failedCount + " failed", "NotificationManager");
+        return Map("sent", sentCount, "failed", failedCount, "total", p_notifications.size());
+    }
+    catch(e)
+    {
+        errorLog("Error sending bulk notifications: " + e.toString(), "NotificationManager");
+        return Map("sent", 0, "failed", p_notifications.size());
+    }
+}
+
+// ============================================================================
+// CLIQ MESSAGE SENDING
+// ============================================================================
+
+// Send direct message via Cliq
+function sendCliqMessage(p_userId, p_message, p_type)
+{
+    try
+    {
+        // TODO: Implement actual Cliq API call
+        // https://www.zoho.com/cliq/api/direct-message.html
+        
+        url = "https://www.zoho.com/cliq/api/v2/directmessages";
+        
+        payload = Map();
+        payload.put("to", p_userId);
+        payload.put("text", p_message);
+        
+        // Add type-specific formatting
+        if(p_type == "urgent")
+        {
+            payload.put("text", "🚨 " + p_message);
+        }
+        else if(p_type == "task")
+        {
+            payload.put("text", "📋 " + p_message);
+        }
+        else if(p_type == "meeting")
+        {
+            payload.put("text", "📅 " + p_message);
+        }
+        
+        // Make API call (implementation depends on Zoho API)
+        // response = invokeurl[...];
+        
+        infoLog("Cliq message sent to user: " + p_userId, "CliqMessaging");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending Cliq message: " + e.toString(), "CliqMessaging");
+        return false;
+    }
+}
+
+// Send channel message
+function sendChannelMessage(p_channelId, p_message, p_messageType)
+{
+    try
+    {
+        // TODO: Implement actual Cliq API call
+        // https://www.zoho.com/cliq/api/send-channel-message.html
+        
+        url = "https://www.zoho.com/cliq/api/v2/channelsapi/channel/post";
+        
+        payload = Map();
+        payload.put("channelId", p_channelId);
+        payload.put("text", p_message);
+        
+        if(p_messageType == "important")
+        {
+            payload.put("text", "⚠️ " + p_message);
+        }
+        
+        infoLog("Channel message sent to channel: " + p_channelId, "ChannelMessaging");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending channel message: " + e.toString(), "ChannelMessaging");
+        return false;
+    }
+}
+
+// ============================================================================
+// NOTIFICATION TYPES
+// ============================================================================
+
+// Create task notification
+function createTaskNotification(p_taskId, p_userId, p_action)
+{
+    try
+    {
+        task = getTask(p_taskId);
+        
+        if(task == null)
+        {
+            return null;
+        }
+        
+        title = "Task: " + task.get("title");
+        
+        if(p_action == "assigned")
+        {
+            message = "You have been assigned a new task: " + task.get("title");
+        }
+        else if(p_action == "updated")
+        {
+            message = "Task " + task.get("title") + " has been updated";
+        }
+        else if(p_action == "completed")
+        {
+            message = "Task " + task.get("title") + " has been marked as completed";
+        }
+        else if(p_action == "overdue")
+        {
+            message = "Task " + task.get("title") + " is now overdue";
+        }
+        
+        actionUrl = "https://projects.zoho.com/task/" + p_taskId;
+        
+        notification = createNotification(p_userId, "task", title, message, actionUrl);
+        
+        return notification;
+    }
+    catch(e)
+    {
+        errorLog("Error creating task notification: " + e.toString(), "NotificationCreation");
+        return null;
+    }
+}
+
+// Create meeting notification
+function createMeetingNotification(p_meetingId, p_userId, p_action)
+{
+    try
+    {
+        meeting = fetchMeeting(p_meetingId);
+        
+        if(meeting == null)
+        {
+            return null;
+        }
+        
+        title = "Meeting: " + meeting.get("title");
+        
+        if(p_action == "scheduled")
+        {
+            message = "You have a new meeting scheduled: " + meeting.get("title");
+        }
+        else if(p_action == "reminder")
+        {
+            message = "Reminder: " + meeting.get("title") + " starts soon";
+        }
+        else if(p_action == "cancelled")
+        {
+            message = "Meeting " + meeting.get("title") + " has been cancelled";
+        }
+        
+        actionUrl = "https://calendar.zoho.com/event/" + p_meetingId;
+        
+        notification = createNotification(p_userId, "meeting", title, message, actionUrl);
+        
+        return notification;
+    }
+    catch(e)
+    {
+        errorLog("Error creating meeting notification: " + e.toString(), "NotificationCreation");
+        return null;
+    }
+}
+
+// Create standup notification
+function createStandupNotification(p_userId)
+{
+    try
+    {
+        title = "Daily Standup";
+        message = "Time to submit your daily standup update!";
+        actionUrl = "";
+        
+        notification = createNotification(p_userId, "standup", title, message, actionUrl);
+        
+        return notification;
+    }
+    catch(e)
+    {
+        errorLog("Error creating standup notification: " + e.toString(), "NotificationCreation");
+        return null;
+    }
+}
+
+// ============================================================================
+// NOTIFICATION RETRIEVAL & MANAGEMENT
+// ============================================================================
+
+// Get user notifications
+function getUserNotifications(p_userId, p_limit)
+{
+    try
+    {
+        if(isEmpty(p_limit))
+        {
+            p_limit = 10;
+        }
+        
+        // TODO: Fetch from database
+        
+        notifications = List();
+        
+        infoLog("Retrieved notifications for user: " + p_userId, "NotificationRetrieval");
+        return notifications;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving notifications: " + e.toString(), "NotificationRetrieval");
+        return List();
+    }
+}
+
+// Mark notification as read
+function markNotificationAsRead(p_notificationId)
+{
+    try
+    {
+        // TODO: Update in database
+        
+        infoLog("Notification marked as read: " + p_notificationId, "NotificationManagement");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error marking notification as read: " + e.toString(), "NotificationManagement");
+        return false;
+    }
+}
+
+// Mark all notifications as read
+function markAllNotificationsAsRead(p_userId)
+{
+    try
+    {
+        // TODO: Update all in database where userId = p_userId
+        
+        infoLog("All notifications marked as read for user: " + p_userId, "NotificationManagement");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error marking all notifications as read: " + e.toString(), "NotificationManagement");
+        return false;
+    }
+}
+
+// Delete notification
+function deleteNotification(p_notificationId)
+{
+    try
+    {
+        // TODO: Delete from database
+        
+        infoLog("Notification deleted: " + p_notificationId, "NotificationManagement");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error deleting notification: " + e.toString(), "NotificationManagement");
+        return false;
+    }
+}
+
+// Get unread notification count
+function getUnreadNotificationCount(p_userId)
+{
+    try
+    {
+        // TODO: Count unread in database where userId = p_userId and isRead = false
+        
+        unreadCount = 5; // Placeholder
+        
+        infoLog("Unread notification count for user: " + p_userId + " = " + unreadCount, "NotificationRetrieval");
+        return unreadCount;
+    }
+    catch(e)
+    {
+        errorLog("Error getting unread count: " + e.toString(), "NotificationRetrieval");
+        return 0;
+    }
+}
+
+// ============================================================================
+// NOTIFICATION VALIDATION
+// ============================================================================
+
+// Validate notification object
+function validateNotification(p_notification)
+{
+    if(isEmpty(p_notification.get("userId")) || isEmpty(p_notification.get("type")))
+    {
+        return false;
+    }
+    
+    if(isEmpty(p_notification.get("title")) || isEmpty(p_notification.get("message")))
+    {
+        return false;
+    }
+    
+    return true;
+}
+
+// ============================================================================
+// END OF NOTIFICATION MANAGER
+// ============================================================================

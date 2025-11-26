@@ -1,0 +1,375 @@
+// ============================================================================
+// TeamSync Assistant - Task Tracker
+// Purpose: Track and manage team tasks
+// ============================================================================
+
+// ============================================================================
+// TASK MANAGEMENT
+// ============================================================================
+
+// Get user's tasks
+function getUserTasks(p_userId, p_status)
+{
+    try
+    {
+        // TODO: Fetch from Zoho Projects API
+        
+        tasks = List();
+        
+        if(isEmpty(p_status) || p_status == "all")
+        {
+            tasks.add(createTaskObject("Complete Q4 Report", "Prepare comprehensive report", p_userId, "2025-11-30", "high", "Planning"));
+            tasks.add(createTaskObject("Review PR", "Code review for Feature X", p_userId, "2025-11-28", "medium", "Development"));
+            tasks.add(createTaskObject("Update Docs", "Update project documentation", p_userId, "2025-12-05", "low", "Documentation"));
+        }
+        else
+        {
+            // Filter by status
+            // TODO: Filter logic
+        }
+        
+        infoLog("Retrieved " + tasks.size() + " tasks for user: " + p_userId, "TaskRetrieval");
+        return tasks;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving user tasks: " + e.toString(), "TaskRetrieval");
+        return List();
+    }
+}
+
+// Get team tasks
+function getTeamTasks(p_teamId, p_status)
+{
+    try
+    {
+        // TODO: Fetch from Zoho Projects API for team
+        
+        tasks = List();
+        tasks.add(createTaskObject("Q4 Planning", "Define Q4 goals", "user1", "2025-11-30", "high", "Planning"));
+        tasks.add(createTaskObject("Feature Development", "Implement Feature X", "user2", "2025-12-15", "high", "Development"));
+        tasks.add(createTaskObject("Testing", "QA testing cycle", "user3", "2025-12-01", "medium", "QA"));
+        
+        infoLog("Retrieved " + tasks.size() + " team tasks", "TaskRetrieval");
+        return tasks;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving team tasks: " + e.toString(), "TaskRetrieval");
+        return List();
+    }
+}
+
+// Create task
+function createTask(p_task)
+{
+    try
+    {
+        if(!validateTask(p_task))
+        {
+            return Map("status", "failed", "reason", "Invalid task data");
+        }
+        
+        taskId = "TASK_" + random.toString() + "_" + now().getTime();
+        p_task.put("id", taskId);
+        p_task.put("createdAt", now());
+        
+        // TODO: Store in Zoho Projects or Creator
+        
+        infoLog("Task created with ID: " + taskId, "TaskManagement");
+        return Map("status", "success", "taskId", taskId, "task", p_task);
+    }
+    catch(e)
+    {
+        errorLog("Error creating task: " + e.toString(), "TaskManagement");
+        return Map("status", "error");
+    }
+}
+
+// Update task status
+function updateTaskStatus(p_taskId, p_newStatus)
+{
+    try
+    {
+        validStatuses = List("open", "in_progress", "completed", "blocked", "on_hold");
+        
+        if(!validStatuses.contains(p_newStatus.toLowerCase()))
+        {
+            return Map("status", "failed", "reason", "Invalid status: " + p_newStatus);
+        }
+        
+        // TODO: Update in Zoho Projects or Creator
+        
+        // Send notification
+        statusChangeMsg = "📋 Task status updated to: " + toTitleCase(p_newStatus);
+        
+        infoLog("Task status updated: " + p_taskId + " -> " + p_newStatus, "TaskManagement");
+        return Map("status", "success", "message", "Task status updated");
+    }
+    catch(e)
+    {
+        errorLog("Error updating task status: " + e.toString(), "TaskManagement");
+        return Map("status", "error");
+    }
+}
+
+// Assign task to user
+function assignTask(p_taskId, p_assigneeId, p_assignedBy)
+{
+    try
+    {
+        // TODO: Update task assignment in database
+        
+        assignmentRecord = Map();
+        assignmentRecord.put("taskId", p_taskId);
+        assignmentRecord.put("assigneeId", p_assigneeId);
+        assignmentRecord.put("assignedBy", p_assignedBy);
+        assignmentRecord.put("assignedAt", now());
+        
+        // Send notification to assignee
+        notificationMsg = "📌 New task assigned to you!";
+        sendCliqNotification(p_assigneeId, notificationMsg);
+        
+        infoLog("Task assigned: " + p_taskId + " -> " + p_assigneeId, "TaskAssignment");
+        return Map("status", "success", "message", "Task assigned successfully");
+    }
+    catch(e)
+    {
+        errorLog("Error assigning task: " + e.toString(), "TaskAssignment");
+        return Map("status", "error");
+    }
+}
+
+// Get task by ID
+function getTask(p_taskId)
+{
+    try
+    {
+        // TODO: Fetch from Zoho Projects
+        
+        task = Map();
+        task.put("id", p_taskId);
+        task.put("title", "Complete Q4 Report");
+        task.put("description", "Prepare comprehensive Q4 performance report");
+        task.put("assignee", "john@example.com");
+        task.put("dueDate", "2025-11-30");
+        task.put("priority", "high");
+        task.put("status", "in_progress");
+        task.put("progress", 65);
+        task.put("createdAt", "2025-11-20");
+        task.put("estimatedHours", 8);
+        task.put("actualHours", 5);
+        
+        infoLog("Task retrieved: " + p_taskId, "TaskRetrieval");
+        return task;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving task: " + e.toString(), "TaskRetrieval");
+        return null;
+    }
+}
+
+// ============================================================================
+// TASK ANALYTICS
+// ============================================================================
+
+// Get task statistics
+function getTaskStatistics(p_teamId)
+{
+    try
+    {
+        tasks = getTeamTasks(p_teamId, "all");
+        
+        openCount = 0;
+        inProgressCount = 0;
+        completedCount = 0;
+        blockedCount = 0;
+        
+        highPriorityCount = 0;
+        overdueCount = 0;
+        
+        totalEstimatedHours = 0;
+        totalActualHours = 0;
+        
+        today = now();
+        
+        for each task in tasks
+        {
+            status = task.get("status");
+            
+            if(status == "open")
+            {
+                openCount = openCount + 1;
+            }
+            else if(status == "in_progress")
+            {
+                inProgressCount = inProgressCount + 1;
+            }
+            else if(status == "completed")
+            {
+                completedCount = completedCount + 1;
+            }
+            else if(status == "blocked")
+            {
+                blockedCount = blockedCount + 1;
+            }
+            
+            if(task.get("priority") == "high")
+            {
+                highPriorityCount = highPriorityCount + 1;
+            }
+            
+            if(!isEmpty(task.get("dueDate")))
+            {
+                dueDate = task.get("dueDate");
+                if(dueDate < today && task.get("status") != "completed")
+                {
+                    overdueCount = overdueCount + 1;
+                }
+            }
+            
+            totalEstimatedHours = totalEstimatedHours + (isEmpty(task.get("estimatedHours")) ? 0 : task.get("estimatedHours"));
+            totalActualHours = totalActualHours + (isEmpty(task.get("actualHours")) ? 0 : task.get("actualHours"));
+        }
+        
+        stats = Map();
+        stats.put("totalTasks", tasks.size());
+        stats.put("openTasks", openCount);
+        stats.put("inProgressTasks", inProgressCount);
+        stats.put("completedTasks", completedCount);
+        stats.put("blockedTasks", blockedCount);
+        stats.put("highPriorityTasks", highPriorityCount);
+        stats.put("overdueTasks", overdueCount);
+        stats.put("totalEstimatedHours", totalEstimatedHours);
+        stats.put("totalActualHours", totalActualHours);
+        stats.put("efficiency", (totalActualHours / totalEstimatedHours * 100).toInteger() + "%");
+        stats.put("completionRate", (completedCount / tasks.size() * 100).toInteger() + "%");
+        
+        infoLog("Task statistics calculated for team: " + p_teamId, "TaskAnalytics");
+        return stats;
+    }
+    catch(e)
+    {
+        errorLog("Error calculating task statistics: " + e.toString(), "TaskAnalytics");
+        return Map();
+    }
+}
+
+// Get overdue tasks
+function getOverdueTasks(p_teamId)
+{
+    try
+    {
+        tasks = getTeamTasks(p_teamId, "all");
+        overdueTasks = List();
+        today = now();
+        
+        for each task in tasks
+        {
+            if(!isEmpty(task.get("dueDate")) && task.get("dueDate") < today && task.get("status") != "completed")
+            {
+                daysOverdue = (today - task.get("dueDate")) / (24 * 60 * 60 * 1000); // Convert to days
+                task.put("daysOverdue", daysOverdue.toInteger());
+                overdueTasks.add(task);
+            }
+        }
+        
+        infoLog("Retrieved " + overdueTasks.size() + " overdue tasks", "TaskAnalytics");
+        return overdueTasks;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving overdue tasks: " + e.toString(), "TaskAnalytics");
+        return List();
+    }
+}
+
+// Get tasks by assignee
+function getTasksByAssignee(p_assigneeId)
+{
+    try
+    {
+        // TODO: Fetch tasks for specific assignee
+        
+        tasks = List();
+        tasks.add(createTaskObject("Task 1", "Description 1", p_assigneeId, "2025-11-30", "high", "Project"));
+        tasks.add(createTaskObject("Task 2", "Description 2", p_assigneeId, "2025-12-05", "medium", "Project"));
+        
+        infoLog("Retrieved " + tasks.size() + " tasks for assignee: " + p_assigneeId, "TaskRetrieval");
+        return tasks;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving assignee tasks: " + e.toString(), "TaskRetrieval");
+        return List();
+    }
+}
+
+// ============================================================================
+// TASK NOTIFICATIONS
+// ============================================================================
+
+// Send task reminder
+function sendTaskReminder(p_taskId, p_userId)
+{
+    try
+    {
+        task = getTask(p_taskId);
+        
+        if(task == null)
+        {
+            return false;
+        }
+        
+        daysUntilDue = (task.get("dueDate") - now()) / (24 * 60 * 60 * 1000);
+        
+        reminderMsg = "⏰ Task reminder: " + task.get("title");
+        
+        if(daysUntilDue <= 1)
+        {
+            reminderMsg = reminderMsg + " - Due TODAY!";
+        }
+        else if(daysUntilDue <= 3)
+        {
+            reminderMsg = reminderMsg + " - Due in " + daysUntilDue.toInteger() + " days";
+        }
+        
+        return sendCliqNotification(p_userId, reminderMsg);
+    }
+    catch(e)
+    {
+        errorLog("Error sending task reminder: " + e.toString(), "TaskNotifications");
+        return false;
+    }
+}
+
+// Notify about overdue tasks
+function notifyOverdueTasks(p_teamId)
+{
+    try
+    {
+        overdueTasks = getOverdueTasks(p_teamId);
+        
+        for each task in overdueTasks
+        {
+            assignee = task.get("assignee");
+            daysOverdue = task.get("daysOverdue");
+            
+            msg = "🚨 Overdue task: " + task.get("title") + " (" + daysOverdue + " days overdue)";
+            sendCliqNotification(assignee, msg);
+        }
+        
+        infoLog("Overdue task notifications sent: " + overdueTasks.size() + " tasks", "TaskNotifications");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending overdue notifications: " + e.toString(), "TaskNotifications");
+        return false;
+    }
+}
+
+// ============================================================================
+// END OF TASK TRACKER
+// ============================================================================

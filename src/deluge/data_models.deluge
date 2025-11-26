@@ -1,0 +1,262 @@
+// ============================================================================
+// TeamSync Assistant - Data Models
+// Purpose: Define core data structures for the bot
+// ============================================================================
+
+// ============================================================================
+// MEETING DATA MODEL
+// ============================================================================
+function createMeetingObject(p_title, p_description, p_startTime, p_endTime, p_attendees, p_timezone)
+{
+    meeting = Map();
+    meeting.put("title", p_title);
+    meeting.put("description", p_description);
+    meeting.put("startTime", p_startTime);
+    meeting.put("endTime", p_endTime);
+    meeting.put("attendees", p_attendees);
+    meeting.put("timezone", p_timezone);
+    meeting.put("status", "scheduled");
+    meeting.put("createdAt", now());
+    meeting.put("remindersSet", false);
+    meeting.put("notes", "");
+    
+    return meeting;
+}
+
+// ============================================================================
+// STANDUP DATA MODEL
+// ============================================================================
+function createStandupObject(p_userId, p_date, p_yesterday, p_today, p_blockers)
+{
+    standup = Map();
+    standup.put("userId", p_userId);
+    standup.put("date", p_date);
+    standup.put("yesterday", p_yesterday);
+    standup.put("today", p_today);
+    standup.put("blockers", p_blockers);
+    standup.put("submittedAt", now());
+    standup.put("duration", 0);
+    standup.put("sentiment", "neutral");
+    
+    return standup;
+}
+
+// ============================================================================
+// TASK DATA MODEL
+// ============================================================================
+function createTaskObject(p_title, p_description, p_assignee, p_dueDate, p_priority, p_project)
+{
+    task = Map();
+    task.put("title", p_title);
+    task.put("description", p_description);
+    task.put("assignee", p_assignee);
+    task.put("dueDate", p_dueDate);
+    task.put("priority", p_priority); // "high", "medium", "low"
+    task.put("project", p_project);
+    task.put("status", "open"); // "open", "in_progress", "completed", "blocked"
+    task.put("createdAt", now());
+    task.put("completedAt", "");
+    task.put("estimatedHours", 0);
+    task.put("actualHours", 0);
+    task.put("dependencies", List());
+    task.put("tags", List());
+    
+    return task;
+}
+
+// ============================================================================
+// TEAM MEMBER DATA MODEL
+// ============================================================================
+function createTeamMemberObject(p_name, p_email, p_timezone, p_skills, p_department)
+{
+    member = Map();
+    member.put("name", p_name);
+    member.put("email", p_email);
+    member.put("timezone", p_timezone);
+    member.put("skills", p_skills); // List of skills
+    member.put("department", p_department);
+    member.put("isActive", true);
+    member.put("joinDate", now());
+    member.put("workingHours", Map("start", "09:00", "end", "18:00"));
+    member.put("preferences", Map());
+    member.put("currentWorkload", 0);
+    member.put("maxCapacity", 40); // hours per week
+    member.put("onLeave", false);
+    member.put("leaveUntil", "");
+    
+    return member;
+}
+
+// ============================================================================
+// TEAM REPORT DATA MODEL
+// ============================================================================
+function createTeamReportObject(p_reportDate, p_completedTasks, p_inProgressTasks, p_blockedTasks)
+{
+    report = Map();
+    report.put("reportDate", p_reportDate);
+    report.put("generatedAt", now());
+    report.put("completedTasks", p_completedTasks);
+    report.put("inProgressTasks", p_inProgressTasks);
+    report.put("blockedTasks", p_blockedTasks);
+    report.put("teamMorale", "neutral");
+    report.put("bottlenecks", List());
+    report.put("achievements", List());
+    report.put("risks", List());
+    report.put("nextWeekFocus", List());
+    report.put("metrics", Map());
+    
+    return report;
+}
+
+// ============================================================================
+// BOT MESSAGE RESPONSE MODEL
+// ============================================================================
+function createBotResponse(p_type, p_title, p_message, p_icon)
+{
+    response = Map();
+    response.put("type", p_type); // "text", "card", "form", "widget"
+    response.put("title", p_title);
+    response.put("message", p_message);
+    response.put("icon", p_icon); // emoji or icon name
+    response.put("timestamp", now());
+    response.put("buttons", List());
+    response.put("attachments", List());
+    
+    return response;
+}
+
+// ============================================================================
+// CARD RESPONSE MODEL (for rich formatting)
+// ============================================================================
+function createCardResponse(p_title, p_description, p_color)
+{
+    card = Map();
+    card.put("card_type", "standard");
+    card.put("title", p_title);
+    card.put("description", p_description);
+    card.put("theme_color", p_color); // hex color or name
+    card.put("sections", List());
+    card.put("buttons", List());
+    card.put("footer", "TeamSync Assistant");
+    card.put("timestamp", now());
+    
+    return card;
+}
+
+// ============================================================================
+// NOTIFICATION MODEL
+// ============================================================================
+function createNotification(p_userId, p_type, p_title, p_message, p_actionUrl)
+{
+    notification = Map();
+    notification.put("userId", p_userId);
+    notification.put("type", p_type); // "meeting", "standup", "task", "alert"
+    notification.put("title", p_title);
+    notification.put("message", p_message);
+    notification.put("actionUrl", p_actionUrl);
+    notification.put("createdAt", now());
+    notification.put("isRead", false);
+    notification.put("readAt", "");
+    notification.put("priority", "normal"); // "high", "normal", "low"
+    
+    return notification;
+}
+
+// ============================================================================
+// TIMEZONE SLOT MODEL (for meeting scheduling)
+// ============================================================================
+function createTimezoneSlot(p_date, p_startTime, p_endTime, p_timezone, p_availableUsers)
+{
+    slot = Map();
+    slot.put("date", p_date);
+    slot.put("startTime", p_startTime);
+    slot.put("endTime", p_endTime);
+    slot.put("timezone", p_timezone);
+    slot.put("availableUsers", p_availableUsers); // List of user IDs
+    slot.put("conflictCount", 0);
+    slot.put("score", 0); // score based on availability
+    
+    return slot;
+}
+
+// ============================================================================
+// ANALYTICS DATA MODEL
+// ============================================================================
+function createAnalyticsRecord(p_date, p_metric, p_value, p_category)
+{
+    analytics = Map();
+    analytics.put("date", p_date);
+    analytics.put("metric", p_metric); // "tasks_completed", "meetings_held", etc
+    analytics.put("value", p_value);
+    analytics.put("category", p_category); // "team", "individual", "project"
+    analytics.put("recordedAt", now());
+    
+    return analytics;
+}
+
+// ============================================================================
+// ERROR LOG MODEL
+// ============================================================================
+function createErrorLog(p_errorCode, p_message, p_stackTrace, p_function)
+{
+    error_log = Map();
+    error_log.put("errorCode", p_errorCode);
+    error_log.put("message", p_message);
+    error_log.put("stackTrace", p_stackTrace);
+    error_log.put("function", p_function);
+    error_log.put("timestamp", now());
+    error_log.put("severity", "error"); // "critical", "error", "warning", "info"
+    error_log.put("isResolved", false);
+    
+    return error_log;
+}
+
+// ============================================================================
+// HELPER FUNCTIONS FOR DATA CONVERSION
+// ============================================================================
+
+// Convert Map to JSON string
+function toJSON(p_map)
+{
+    return p_map.toJSON();
+}
+
+// Parse JSON string to Map
+function fromJSON(p_json)
+{
+    return parse(p_json);
+}
+
+// Validate team member object
+function validateTeamMember(p_member)
+{
+    if(isEmpty(p_member.get("name")) || isEmpty(p_member.get("email")))
+    {
+        return false;
+    }
+    return true;
+}
+
+// Validate task object
+function validateTask(p_task)
+{
+    if(isEmpty(p_task.get("title")) || isEmpty(p_task.get("assignee")))
+    {
+        return false;
+    }
+    return true;
+}
+
+// Validate meeting object
+function validateMeeting(p_meeting)
+{
+    if(isEmpty(p_meeting.get("title")) || isEmpty(p_meeting.get("startTime")))
+    {
+        return false;
+    }
+    return true;
+}
+
+// ============================================================================
+// END OF DATA MODELS
+// ============================================================================

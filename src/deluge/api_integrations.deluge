@@ -1,0 +1,495 @@
+// ============================================================================
+// TeamSync Assistant - API Integrations
+// Purpose: Handle integrations with Zoho Calendar, Projects, CRM
+// ============================================================================
+
+// ============================================================================
+// ZOHO CALENDAR INTEGRATION
+// ============================================================================
+
+// Create event in Zoho Calendar
+function createCalendarEvent(p_accessToken, p_title, p_description, p_startTime, p_endTime, p_attendees)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/calendar/v2/calendars/primary/events";
+        
+        eventPayload = Map();
+        eventPayload.put("summary", p_title);
+        eventPayload.put("description", p_description);
+        eventPayload.put("startTime", p_startTime);
+        eventPayload.put("endTime", p_endTime);
+        eventPayload.put("attendees", p_attendees);
+        eventPayload.put("reminders", List(Map("type", "email", "minutes", 30)));
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "POST",
+            headers: headers,
+            parameters: eventPayload.toJSON()
+        ];
+        
+        infoLog("Calendar event created successfully: " + p_title, "CalendarIntegration");
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Failed to create calendar event: " + e.toString(), "CalendarIntegration");
+        return null;
+    }
+}
+
+// Get calendar availability
+function getCalendarAvailability(p_accessToken, p_date, p_attendees)
+{
+    try
+    {
+        availabilityList = List();
+        
+        for each attendee in p_attendees
+        {
+            url = "https://www.zohoapis.com/calendar/v2/calendars/" + attendee + "/events";
+            
+        params = Map();
+            params.put("date", p_date);
+            
+            headers = Map();
+            headers.put("Authorization", "Bearer " + p_accessToken);
+            
+            response = invokeurl
+            [
+                url: url,
+                type: "GET",
+                headers: headers,
+                parameters: params
+            ];
+            
+            if(response != null)
+            {
+                availabilityList.add(Map("attendee", attendee, "events", response));
+            }
+        }
+        
+        return availabilityList;
+    }
+    catch(e)
+    {
+        errorLog("Failed to get calendar availability: " + e.toString(), "CalendarIntegration");
+        return null;
+    }
+}
+
+// Update calendar event
+function updateCalendarEvent(p_accessToken, p_eventId, p_updates)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/calendar/v2/calendars/primary/events/" + p_eventId;
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "PUT",
+            headers: headers,
+            parameters: p_updates.toJSON()
+        ];
+        
+        infoLog("Calendar event updated: " + p_eventId, "CalendarIntegration");
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Failed to update calendar event: " + e.toString(), "CalendarIntegration");
+        return null;
+    }
+}
+
+// ============================================================================
+// ZOHO PROJECTS INTEGRATION
+// ============================================================================
+
+// Get tasks from Zoho Projects
+function getProjectTasks(p_accessToken, p_projectId)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/projects/v3/projects/" + p_projectId + "/tasks";
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "GET",
+            headers: headers
+        ];
+        
+        if(response != null && response.has("tasks"))
+        {
+            infoLog("Retrieved tasks for project: " + p_projectId, "ProjectsIntegration");
+            return response.get("tasks");
+        }
+        
+        return List();
+    }
+    catch(e)
+    {
+        errorLog("Failed to get project tasks: " + e.toString(), "ProjectsIntegration");
+        return List();
+    }
+}
+
+// Create task in Zoho Projects
+function createProjectTask(p_accessToken, p_projectId, p_taskName, p_assignee, p_dueDate)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/projects/v3/projects/" + p_projectId + "/tasks";
+        
+        taskPayload = Map();
+        taskPayload.put("name", p_taskName);
+        taskPayload.put("owner_id", p_assignee);
+        taskPayload.put("due_date", p_dueDate);
+        taskPayload.put("priority", "normal");
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "POST",
+            headers: headers,
+            parameters: taskPayload.toJSON()
+        ];
+        
+        infoLog("Task created in project: " + p_projectId, "ProjectsIntegration");
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Failed to create project task: " + e.toString(), "ProjectsIntegration");
+        return null;
+    }
+}
+
+// Update task status
+function updateTaskStatus(p_accessToken, p_projectId, p_taskId, p_status)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/projects/v3/projects/" + p_projectId + "/tasks/" + p_taskId;
+        
+        updatePayload = Map();
+        updatePayload.put("status", p_status); // "NOTSTARTED", "INPROGRESS", "COMPLETED"
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "PUT",
+            headers: headers,
+            parameters: updatePayload.toJSON()
+        ];
+        
+        infoLog("Task status updated: " + p_taskId, "ProjectsIntegration");
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Failed to update task status: " + e.toString(), "ProjectsIntegration");
+        return null;
+    }
+}
+
+// Get project members
+function getProjectMembers(p_accessToken, p_projectId)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/projects/v3/projects/" + p_projectId + "/members";
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "GET",
+            headers: headers
+        ];
+        
+        if(response != null && response.has("members"))
+        {
+            infoLog("Retrieved project members for: " + p_projectId, "ProjectsIntegration");
+            return response.get("members");
+        }
+        
+        return List();
+    }
+    catch(e)
+    {
+        errorLog("Failed to get project members: " + e.toString(), "ProjectsIntegration");
+        return List();
+    }
+}
+
+// ============================================================================
+// ZOHO CRM INTEGRATION
+// ============================================================================
+
+// Get contacts/accounts from CRM
+function getCRMContacts(p_accessToken, p_moduleType)
+{
+    try
+    {
+        if(isEmpty(p_moduleType))
+        {
+            p_moduleType = "Contacts";
+        }
+        
+        url = "https://www.zohoapis.com/crm/v3/" + p_moduleType;
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "GET",
+            headers: headers
+        ];
+        
+        if(response != null && response.has("data"))
+        {
+            infoLog("Retrieved CRM contacts: " + p_moduleType, "CRMIntegration");
+            return response.get("data");
+        }
+        
+        return List();
+    }
+    catch(e)
+    {
+        errorLog("Failed to get CRM contacts: " + e.toString(), "CRMIntegration");
+        return List();
+    }
+}
+
+// Create CRM record
+function createCRMRecord(p_accessToken, p_module, p_data)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/crm/v3/" + p_module;
+        
+        payload = Map();
+        payload.put("data", List(p_data));
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "POST",
+            headers: headers,
+            parameters: payload.toJSON()
+        ];
+        
+        infoLog("CRM record created in module: " + p_module, "CRMIntegration");
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Failed to create CRM record: " + e.toString(), "CRMIntegration");
+        return null;
+    }
+}
+
+// Update CRM record
+function updateCRMRecord(p_accessToken, p_module, p_recordId, p_data)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/crm/v3/" + p_module + "/" + p_recordId;
+        
+        payload = Map();
+        payload.put("data", List(p_data));
+        
+        headers = Map();
+        headers.put("Authorization", "Bearer " + p_accessToken);
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "PUT",
+            headers: headers,
+            parameters: payload.toJSON()
+        ];
+        
+        infoLog("CRM record updated: " + p_recordId, "CRMIntegration");
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Failed to update CRM record: " + e.toString(), "CRMIntegration");
+        return null;
+    }
+}
+
+// ============================================================================
+// ZOHO CREATOR INTEGRATION (Data Persistence)
+// ============================================================================
+
+// Insert record into Creator table
+function insertCreatorRecord(p_accountName, p_workspaceName, p_formName, p_data)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/creator/v2/accounts/" + p_accountName + "/" + p_workspaceName + "/api/json/TeamSync_Teams";
+        
+        payload = Map();
+        payload.put("data", p_data);
+        
+        headers = Map();
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "POST",
+            headers: headers,
+            parameters: payload.toJSON()
+        ];
+        
+        infoLog("Creator record inserted", "CreatorIntegration");
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Failed to insert Creator record: " + e.toString(), "CreatorIntegration");
+        return null;
+    }
+}
+
+// Fetch records from Creator table
+function fetchCreatorRecords(p_accountName, p_workspaceName, p_tableName)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/creator/v2/accounts/" + p_accountName + "/" + p_workspaceName + "/api/json/" + p_tableName;
+        
+        headers = Map();
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "GET",
+            headers: headers
+        ];
+        
+        if(response != null && response.has("data"))
+        {
+            infoLog("Creator records fetched from table: " + p_tableName, "CreatorIntegration");
+            return response.get("data");
+        }
+        
+        return List();
+    }
+    catch(e)
+    {
+        errorLog("Failed to fetch Creator records: " + e.toString(), "CreatorIntegration");
+        return List();
+    }
+}
+
+// Update Creator record
+function updateCreatorRecord(p_accountName, p_workspaceName, p_tableName, p_recordId, p_data)
+{
+    try
+    {
+        url = "https://www.zohoapis.com/creator/v2/accounts/" + p_accountName + "/" + p_workspaceName + "/api/json/" + p_tableName + "/" + p_recordId;
+        
+        payload = Map();
+        payload.put("data", p_data);
+        
+        headers = Map();
+        headers.put("Content-Type", "application/json");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "PUT",
+            headers: headers,
+            parameters: payload.toJSON()
+        ];
+        
+        infoLog("Creator record updated: " + p_recordId, "CreatorIntegration");
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Failed to update Creator record: " + e.toString(), "CreatorIntegration");
+        return null;
+    }
+}
+
+// ============================================================================
+// TOKEN MANAGEMENT
+// ============================================================================
+
+// Refresh OAuth tokens
+function refreshOAuthToken(p_clientId, p_clientSecret, p_refreshToken)
+{
+    try
+    {
+        url = "https://accounts.zoho.com/oauth/v2/token";
+        
+        params = Map();
+        params.put("client_id", p_clientId);
+        params.put("client_secret", p_clientSecret);
+        params.put("refresh_token", p_refreshToken);
+        params.put("grant_type", "refresh_token");
+        
+        response = invokeurl
+        [
+            url: url,
+            type: "POST",
+            parameters: params
+        ];
+        
+        if(response != null && response.has("access_token"))
+        {
+            infoLog("OAuth token refreshed successfully", "TokenManagement");
+            return response.get("access_token");
+        }
+        
+        return null;
+    }
+    catch(e)
+    {
+        errorLog("Failed to refresh OAuth token: " + e.toString(), "TokenManagement");
+        return null;
+    }
+}
+
+// ============================================================================
+// END OF API INTEGRATIONS
+// ============================================================================

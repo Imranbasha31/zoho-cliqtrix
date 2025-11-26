@@ -1,0 +1,467 @@
+// ============================================================================
+// TeamSync Assistant - Utility Functions
+// Purpose: Common utility functions for formatting, validation, and helpers
+// ============================================================================
+
+// ============================================================================
+// DATE AND TIME UTILITIES
+// ============================================================================
+
+// Get current time with timezone
+function getCurrentTimeInTimezone(p_timezone)
+{
+    // Convert current time to specified timezone
+    // Zoho: Use getcurrenttimezone() or similar
+    timeObj = Map();
+    timeObj.put("timestamp", now());
+    timeObj.put("timezone", p_timezone);
+    return timeObj;
+}
+
+// Format date to readable string
+function formatDate(p_date, p_format)
+{
+    // Default format: "dd/MM/yyyy HH:mm"
+    if(isEmpty(p_format))
+    {
+        p_format = "dd/MM/yyyy HH:mm";
+    }
+    return p_date.toString(p_format);
+}
+
+// Convert time between timezones
+function convertTimezone(p_time, p_fromTz, p_toTz)
+{
+    // Simple timezone conversion
+    tzDiff = getTimezoneDifference(p_fromTz, p_toTz);
+    convertedTime = p_time.addHour(tzDiff);
+    return convertedTime;
+}
+
+// Get timezone difference in hours
+function getTimezoneDifference(p_fromTz, p_toTz)
+{
+    // Map common timezones to UTC offset
+    tzMap = Map();
+    tzMap.put("GMT", 0);
+    tzMap.put("UTC", 0);
+    tzMap.put("EST", -5);
+    tzMap.put("CST", -6);
+    tzMap.put("MST", -7);
+    tzMap.put("PST", -8);
+    tzMap.put("IST", 5.5);
+    tzMap.put("GMT+1", 1);
+    tzMap.put("GMT+5:30", 5.5);
+    
+    fromOffset = tzMap.get(p_fromTz);
+    toOffset = tzMap.get(p_toTz);
+    
+    if(isEmpty(fromOffset) || isEmpty(toOffset))
+    {
+        return 0;
+    }
+    
+    return toOffset - fromOffset;
+}
+
+// Check if time is within working hours
+function isWithinWorkingHours(p_time, p_startHour, p_endHour)
+{
+    hour = p_time.getHour();
+    return (hour >= p_startHour && hour < p_endHour);
+}
+
+// Get next business day
+function getNextBusinessDay(p_date)
+{
+    nextDay = p_date.addDay(1);
+    dayOfWeek = nextDay.getDayOfWeek();
+    
+    // Skip weekends (Saturday=7, Sunday=1)
+    if(dayOfWeek == 7 || dayOfWeek == 1)
+    {
+        return getNextBusinessDay(nextDay);
+    }
+    
+    return nextDay;
+}
+
+// ============================================================================
+// STRING UTILITIES
+// ============================================================================
+
+// Truncate string to max length
+function truncateString(p_string, p_maxLength, p_suffix)
+{
+    if(isEmpty(p_suffix))
+    {
+        p_suffix = "...";
+    }
+    
+    if(p_string.length() > p_maxLength)
+    {
+        return p_string.subString(0, p_maxLength - p_suffix.length()) + p_suffix;
+    }
+    
+    return p_string;
+}
+
+// Capitalize first letter
+function capitalizeFirst(p_string)
+{
+    if(isEmpty(p_string))
+    {
+        return "";
+    }
+    
+    return p_string.subString(0, 1).toUpperCase() + p_string.subString(1);
+}
+
+// Convert string to title case
+function toTitleCase(p_string)
+{
+    words = p_string.split(" ");
+    titleWords = List();
+    
+    for each word in words
+    {
+        titleWords.add(capitalizeFirst(word));
+    }
+    
+    return titleWords.toString(" ");
+}
+
+// Parse command arguments
+function parseCommandArgs(p_commandString)
+{
+    // Split by space but respect quoted strings
+    args = List();
+    currentArg = "";
+    inQuotes = false;
+    
+    for i = 0 to p_commandString.length() - 1
+    {
+        char = p_commandString.charAt(i);
+        
+        if(char == "\"" || char == "'")
+        {
+            inQuotes = !inQuotes;
+        }
+        else if(char == " " && !inQuotes)
+        {
+            if(!isEmpty(currentArg))
+            {
+                args.add(currentArg);
+                currentArg = "";
+            }
+        }
+        else
+        {
+            currentArg = currentArg + char;
+        }
+    }
+    
+    if(!isEmpty(currentArg))
+    {
+        args.add(currentArg);
+    }
+    
+    return args;
+}
+
+// Escape special characters for JSON
+function escapeJSON(p_string)
+{
+    p_string = p_string.replaceAll("\\", "\\\\");
+    p_string = p_string.replaceAll("\"", "\\\"");
+    p_string = p_string.replaceAll("\n", "\\n");
+    p_string = p_string.replaceAll("\r", "\\r");
+    p_string = p_string.replaceAll("\t", "\\t");
+    
+    return p_string;
+}
+
+// ============================================================================
+// VALIDATION UTILITIES
+// ============================================================================
+
+// Validate email address
+function isValidEmail(p_email)
+{
+    pattern = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}$";
+    return p_email.match(pattern);
+}
+
+// Validate URL
+function isValidURL(p_url)
+{
+    pattern = "^(https?://)?([\\da-z\\.-]+)\\.([a-z\\.]{2,6})([/\\w \\.-]*)*/?$";
+    return p_url.match(pattern);
+}
+
+// Check if value is empty/null
+function isEmpty(p_value)
+{
+    if(p_value == null || p_value == "")
+    {
+        return true;
+    }
+    
+    if(p_value.toString() == "null" || p_value.toString() == "")
+    {
+        return true;
+    }
+    
+    return false;
+}
+
+// Validate time format (HH:mm)
+function isValidTimeFormat(p_time)
+{
+    pattern = "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$";
+    return p_time.match(pattern);
+}
+
+// ============================================================================
+// COLLECTION UTILITIES
+// ============================================================================
+
+// Remove duplicates from list
+function removeDuplicates(p_list)
+{
+    uniqueList = List();
+    
+    for each item in p_list
+    {
+        if(!uniqueList.contains(item))
+        {
+            uniqueList.add(item);
+        }
+    }
+    
+    return uniqueList;
+}
+
+// Sort list of maps by key
+function sortByKey(p_list, p_key, p_descending)
+{
+    if(isEmpty(p_descending))
+    {
+        p_descending = false;
+    }
+    
+    // Simple bubble sort
+    n = p_list.size();
+    
+    for i = 0 to n - 1
+    {
+        for j = 0 to n - i - 2
+        {
+            item1 = p_list.get(j).get(p_key);
+            item2 = p_list.get(j + 1).get(p_key);
+            
+            if(p_descending)
+            {
+                if(item1 < item2)
+                {
+                    temp = p_list.get(j);
+                    p_list.set(j, p_list.get(j + 1));
+                    p_list.set(j + 1, temp);
+                }
+            }
+            else
+            {
+                if(item1 > item2)
+                {
+                    temp = p_list.get(j);
+                    p_list.set(j, p_list.get(j + 1));
+                    p_list.set(j + 1, temp);
+                }
+            }
+        }
+    }
+    
+    return p_list;
+}
+
+// Filter list by condition
+function filterList(p_list, p_key, p_value)
+{
+    filteredList = List();
+    
+    for each item in p_list
+    {
+        if(item.get(p_key) == p_value)
+        {
+            filteredList.add(item);
+        }
+    }
+    
+    return filteredList;
+}
+
+// Find item in list by property
+function findInList(p_list, p_key, p_value)
+{
+    for each item in p_list
+    {
+        if(item.get(p_key) == p_value)
+        {
+            return item;
+        }
+    }
+    
+    return null;
+}
+
+// ============================================================================
+// FORMATTING UTILITIES
+// ============================================================================
+
+// Format number as currency
+function formatCurrency(p_amount, p_currency)
+{
+    if(isEmpty(p_currency))
+    {
+        p_currency = "$";
+    }
+    
+    return p_currency + " " + p_amount.toString("#,##0.00");
+}
+
+// Format percentage
+function formatPercentage(p_value, p_decimals)
+{
+    if(isEmpty(p_decimals))
+    {
+        p_decimals = 1;
+    }
+    
+    percentage = p_value * 100;
+    return percentage.toString("0." + "0".repeat(p_decimals)) + "%";
+}
+
+// Format duration in hours and minutes
+function formatDuration(p_hours)
+{
+    hours = p_hours.toInteger();
+    minutes = ((p_hours - hours) * 60).toInteger();
+    
+    return hours + "h " + minutes + "m";
+}
+
+// Create human-readable time difference
+function getHumanReadableTime(p_date)
+{
+    now_time = now();
+    diff = now_time.getTime() - p_date.getTime();
+    
+    seconds = diff / 1000;
+    minutes = seconds / 60;
+    hours = minutes / 60;
+    days = hours / 24;
+    
+    if(seconds < 60)
+    {
+        return "just now";
+    }
+    else if(minutes < 60)
+    {
+        return minutes.toInteger() + " minutes ago";
+    }
+    else if(hours < 24)
+    {
+        return hours.toInteger() + " hours ago";
+    }
+    else if(days < 7)
+    {
+        return days.toInteger() + " days ago";
+    }
+    else
+    {
+        return p_date.toString("dd/MM/yyyy");
+    }
+}
+
+// ============================================================================
+// EMOJI AND ICON UTILITIES
+// ============================================================================
+
+// Get emoji for priority
+function getPriorityEmoji(p_priority)
+{
+    emojiMap = Map();
+    emojiMap.put("high", "🔴");
+    emojiMap.put("medium", "🟠");
+    emojiMap.put("low", "🟢");
+    
+    return emojiMap.get(p_priority.toLowerCase());
+}
+
+// Get emoji for status
+function getStatusEmoji(p_status)
+{
+    statusMap = Map();
+    statusMap.put("open", "📋");
+    statusMap.put("in_progress", "⚙️");
+    statusMap.put("completed", "✅");
+    statusMap.put("blocked", "🚫");
+    statusMap.put("scheduled", "📅");
+    
+    return statusMap.get(p_status.toLowerCase());
+}
+
+// Get color code for priority
+function getPriorityColor(p_priority)
+{
+    colorMap = Map();
+    colorMap.put("high", "#FF0000");
+    colorMap.put("medium", "#FFA500");
+    colorMap.put("low", "#00AA00");
+    
+    return colorMap.get(p_priority.toLowerCase());
+}
+
+// ============================================================================
+// LOGGING UTILITIES
+// ============================================================================
+
+// Log message with level
+function logMessage(p_level, p_message, p_module)
+{
+    timestamp = now().toString("dd/MM/yyyy HH:mm:ss");
+    logEntry = "[" + timestamp + "] [" + p_level + "] [" + p_module + "] " + p_message;
+    
+    // Log to console/file as needed
+    info logEntry;
+    
+    return logEntry;
+}
+
+// Debug log
+function debugLog(p_message, p_module)
+{
+    return logMessage("DEBUG", p_message, p_module);
+}
+
+// Info log
+function infoLog(p_message, p_module)
+{
+    return logMessage("INFO", p_message, p_module);
+}
+
+// Warning log
+function warningLog(p_message, p_module)
+{
+    return logMessage("WARN", p_message, p_module);
+}
+
+// Error log
+function errorLog(p_message, p_module)
+{
+    return logMessage("ERROR", p_message, p_module);
+}
+
+// ============================================================================
+// END OF UTILITIES
+// ============================================================================

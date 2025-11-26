@@ -1,0 +1,388 @@
+// ============================================================================
+// TeamSync Assistant - Bot Handlers
+// Purpose: Handle Zoho Cliq bot events and user interactions
+// ============================================================================
+
+// ============================================================================
+// MAIN BOT WEBHOOK HANDLER
+// ============================================================================
+
+// Main function called by Zoho Cliq webhook
+function handleBotWebhook(p_webhookPayload)
+{
+    try
+    {
+        infoLog("Bot webhook received", "BotHandlers");
+        
+        // Parse webhook payload
+        if(isEmpty(p_webhookPayload))
+        {
+            errorLog("Empty webhook payload", "BotHandlers");
+            return buildErrorResponse("Invalid payload");
+        }
+        
+        webhookData = parse(p_webhookPayload);
+        
+        // Determine action type
+        if(webhookData.has("type"))
+        {
+            eventType = webhookData.get("type");
+            
+            if(eventType == "message.command")
+            {
+                return handleSlashCommand(webhookData);
+            }
+            else if(eventType == "message.mention")
+            {
+                return handleMention(webhookData);
+            }
+            else if(eventType == "chat.message")
+            {
+                return handleChatMessage(webhookData);
+            }
+            else if(eventType == "button.action")
+            {
+                return handleButtonAction(webhookData);
+            }
+        }
+        
+        return buildResponse("Command processed");
+    }
+    catch(e)
+    {
+        errorLog("Webhook handler error: " + e.toString(), "BotHandlers");
+        return buildErrorResponse("Error processing webhook: " + e.toString());
+    }
+}
+
+// ============================================================================
+// SLASH COMMAND HANDLER
+// ============================================================================
+
+function handleSlashCommand(p_data)
+{
+    try
+    {
+        command = p_data.get("command");
+        args = p_data.get("args");
+        userId = p_data.get("userId");
+        channelId = p_data.get("channelId");
+        
+        infoLog("Processing slash command: " + command, "SlashCommands");
+        
+        response = Map();
+        
+        if(command == "/schedule-meeting")
+        {
+            response = handleScheduleMeetingCommand(args, userId, channelId);
+        }
+        else if(command == "/standup")
+        {
+            response = handleStandupCommand(args, userId, channelId);
+        }
+        else if(command == "/task-status")
+        {
+            response = handleTaskStatusCommand(args, userId, channelId);
+        }
+        else if(command == "/team-report")
+        {
+            response = handleTeamReportCommand(args, userId, channelId);
+        }
+        else if(command == "/help")
+        {
+            response = handleHelpCommand();
+        }
+        else if(command == "/hello")
+        {
+            response = handleWelcomeCommand(userId);
+        }
+        else
+        {
+            response = buildResponse("Unknown command: " + command);
+        }
+        
+        return response;
+    }
+    catch(e)
+    {
+        errorLog("Slash command handler error: " + e.toString(), "SlashCommands");
+        return buildErrorResponse("Error processing command");
+    }
+}
+
+// ============================================================================
+// MENTION HANDLER
+// ============================================================================
+
+function handleMention(p_data)
+{
+    try
+    {
+        messageText = p_data.get("text");
+        userId = p_data.get("userId");
+        channelId = p_data.get("channelId");
+        
+        infoLog("Bot mentioned in channel: " + channelId, "MentionHandler");
+        
+        // Extract question or request from message
+        // Respond with helpful information or action
+        
+        if(messageText.contains("schedule") || messageText.contains("meeting"))
+        {
+            return buildResponse("Would you like to schedule a meeting? Use /schedule-meeting to get started!");
+        }
+        else if(messageText.contains("standup") || messageText.contains("status"))
+        {
+            return buildResponse("Ready for standup! Use /standup to submit your daily update.");
+        }
+        else if(messageText.contains("task") || messageText.contains("work"))
+        {
+            return buildResponse("Looking for task updates? Use /task-status to check your tasks.");
+        }
+        else if(messageText.contains("report") || messageText.contains("analytics"))
+        {
+            return buildResponse("Need team insights? Use /team-report for weekly analytics.");
+        }
+        else
+        {
+            return buildResponse("Hi! Use /help to see what I can do for you.");
+        }
+    }
+    catch(e)
+    {
+        errorLog("Mention handler error: " + e.toString(), "MentionHandler");
+        return buildErrorResponse("Error processing mention");
+    }
+}
+
+// ============================================================================
+// CHAT MESSAGE HANDLER
+// ============================================================================
+
+function handleChatMessage(p_data)
+{
+    try
+    {
+        messageText = p_data.get("text");
+        userId = p_data.get("userId");
+        channelId = p_data.get("channelId");
+        
+        infoLog("Chat message received from user: " + userId, "ChatHandler");
+        
+        // Process regular chat messages if needed
+        // This could include keyword-based responses
+        
+        return buildResponse("Message received and processed");
+    }
+    catch(e)
+    {
+        errorLog("Chat message handler error: " + e.toString(), "ChatHandler");
+        return buildErrorResponse("Error processing message");
+    }
+}
+
+// ============================================================================
+// BUTTON ACTION HANDLER
+// ============================================================================
+
+function handleButtonAction(p_data)
+{
+    try
+    {
+        action = p_data.get("action");
+        userId = p_data.get("userId");
+        channelId = p_data.get("channelId");
+        payload = p_data.get("payload");
+        
+        infoLog("Button action received: " + action, "ButtonHandler");
+        
+        if(action == "confirm_meeting")
+        {
+            return confirmMeeting(payload, userId);
+        }
+        else if(action == "submit_standup")
+        {
+            return submitStandup(payload, userId);
+        }
+        else if(action == "assign_task")
+        {
+            return assignTask(payload, userId);
+        }
+        else if(action == "view_details")
+        {
+            return viewTaskDetails(payload, userId);
+        }
+        
+        return buildResponse("Action processed");
+    }
+    catch(e)
+    {
+        errorLog("Button action handler error: " + e.toString(), "ButtonHandler");
+        return buildErrorResponse("Error processing button action");
+    }
+}
+
+// ============================================================================
+// WELCOME / HELLO HANDLER
+// ============================================================================
+
+function handleWelcomeCommand(p_userId)
+{
+    try
+    {
+        welcomeMessage = "👋 Welcome to TeamSync Assistant!\n\n";
+        welcomeMessage = welcomeMessage + "I'm here to help you:\n";
+        welcomeMessage = welcomeMessage + "• 📅 Schedule meetings efficiently\n";
+        welcomeMessage = welcomeMessage + "• 📊 Track daily standups\n";
+        welcomeMessage = welcomeMessage + "• ✅ Monitor task progress\n";
+        welcomeMessage = welcomeMessage + "• 📈 Get team analytics\n\n";
+        welcomeMessage = welcomeMessage + "Type /help to see all commands!";
+        
+        infoLog("Welcome command handled for user: " + p_userId, "WelcomeHandler");
+        return buildResponse(welcomeMessage);
+    }
+    catch(e)
+    {
+        errorLog("Welcome handler error: " + e.toString(), "WelcomeHandler");
+        return buildErrorResponse("Error generating welcome message");
+    }
+}
+
+// ============================================================================
+// HELP HANDLER
+// ============================================================================
+
+function handleHelpCommand()
+{
+    try
+    {
+        helpMessage = "📚 *Available Commands:*\n\n";
+        helpMessage = helpMessage + "*Meeting Management:*\n";
+        helpMessage = helpMessage + "`/schedule-meeting` - Find the best time for your team to meet\n";
+        helpMessage = helpMessage + "`/cancel-meeting` - Cancel a scheduled meeting\n\n";
+        
+        helpMessage = helpMessage + "*Daily Updates:*\n";
+        helpMessage = helpMessage + "`/standup` - Submit your daily standup update\n";
+        helpMessage = helpMessage + "`/standup-report` - View team standup summary\n\n";
+        
+        helpMessage = helpMessage + "*Task Management:*\n";
+        helpMessage = helpMessage + "`/task-status` - Check your current tasks\n";
+        helpMessage = helpMessage + "`/assign-task` - Assign a task to team member\n\n";
+        
+        helpMessage = helpMessage + "*Analytics:*\n";
+        helpMessage = helpMessage + "`/team-report` - Get weekly team performance report\n";
+        helpMessage = helpMessage + "`/my-metrics` - View your personal productivity metrics\n";
+        
+        infoLog("Help command executed", "HelpHandler");
+        return buildResponse(helpMessage);
+    }
+    catch(e)
+    {
+        errorLog("Help handler error: " + e.toString(), "HelpHandler");
+        return buildErrorResponse("Error generating help information");
+    }
+}
+
+// ============================================================================
+// CONTEXT HANDLER (For multi-turn conversations)
+// ============================================================================
+
+function storeUserContext(p_userId, p_context)
+{
+    try
+    {
+        contextMap = Map();
+        contextMap.put("userId", p_userId);
+        contextMap.put("context", p_context);
+        contextMap.put("timestamp", now());
+        
+        // Store in a data structure or database
+        // This allows multi-turn conversations
+        
+        infoLog("User context stored: " + p_userId, "ContextHandler");
+        return contextMap;
+    }
+    catch(e)
+    {
+        errorLog("Context storage error: " + e.toString(), "ContextHandler");
+        return null;
+    }
+}
+
+function retrieveUserContext(p_userId)
+{
+    try
+    {
+        // Retrieve stored context for user
+        // This enables remembering previous interactions
+        
+        infoLog("User context retrieved: " + p_userId, "ContextHandler");
+        return Map(); // Return empty or actual context
+    }
+    catch(e)
+    {
+        errorLog("Context retrieval error: " + e.toString(), "ContextHandler");
+        return null;
+    }
+}
+
+// ============================================================================
+// RESPONSE BUILDERS
+// ============================================================================
+
+// Build standard response
+function buildResponse(p_message)
+{
+    response = Map();
+    response.put("text", p_message);
+    response.put("type", "text");
+    response.put("status", "success");
+    response.put("timestamp", now());
+    
+    return response;
+}
+
+// Build error response
+function buildErrorResponse(p_errorMessage)
+{
+    response = Map();
+    response.put("text", "❌ Error: " + p_errorMessage);
+    response.put("type", "error");
+    response.put("status", "failed");
+    response.put("timestamp", now());
+    
+    return response;
+}
+
+// Build card response (rich formatting)
+function buildCardResponse(p_title, p_content, p_color)
+{
+    if(isEmpty(p_color))
+    {
+        p_color = "#3498DB"; // Blue
+    }
+    
+    card = Map();
+    card.put("type", "card");
+    card.put("title", p_title);
+    card.put("content", p_content);
+    card.put("theme_color", p_color);
+    card.put("timestamp", now());
+    
+    return card;
+}
+
+// Build form response
+function buildFormResponse(p_formFields)
+{
+    form = Map();
+    form.put("type", "form");
+    form.put("fields", p_formFields);
+    form.put("timestamp", now());
+    
+    return form;
+}
+
+// ============================================================================
+// END OF BOT HANDLERS
+// ============================================================================

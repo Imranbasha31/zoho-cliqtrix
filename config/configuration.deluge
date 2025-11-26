@@ -1,0 +1,201 @@
+// ============================================================================
+// TeamSync Assistant - Configuration
+// ============================================================================
+
+// Bot Configuration
+zohocliq.bot = {
+    "name": "TeamSync Assistant",
+    "version": "1.0.0",
+    "description": "AI-Powered Team Collaboration Assistant",
+    "author": "Your Organization",
+    "webhookUrl": "https://your-domain.com/webhook/teamsync",
+    "token": "your_bot_token_here",
+    "features": [
+        "Meeting Scheduling",
+        "Daily Standups",
+        "Task Tracking",
+        "Team Analytics",
+        "Auto Summarization"
+    ]
+};
+
+// API Configuration
+zoho.api = {
+    "calendar": {
+        "baseUrl": "https://www.zohoapis.com/calendar/v2",
+        "scope": "calendar.calendar.read,calendar.calendar.create,calendar.calendar.update"
+    },
+    "projects": {
+        "baseUrl": "https://www.zohoapis.com/projects/v3",
+        "scope": "projects.tasks.read,projects.tasks.create,projects.tasks.update"
+    },
+    "crm": {
+        "baseUrl": "https://www.zohoapis.com/crm/v3",
+        "scope": "crm.read,crm.create,crm.update"
+    },
+    "creator": {
+        "baseUrl": "https://www.zohoapis.com/creator/v2",
+        "scope": "creator.read,creator.create,creator.update"
+    },
+    "cliq": {
+        "baseUrl": "https://www.zoho.com/cliq/api",
+        "apiVersion": "v2"
+    }
+};
+
+// OAuth Credentials (use environment variables in production)
+oauth = {
+    "clientId": "${ZOHO_CLIENT_ID}",
+    "clientSecret": "${ZOHO_CLIENT_SECRET}",
+    "refreshToken": "${ZOHO_REFRESH_TOKEN}",
+    "grantType": "refresh_token"
+};
+
+// Scheduling Configuration
+schedulers = {
+    "dailyStandup": {
+        "enabled": true,
+        "time": "09:00",
+        "timezone": "UTC",
+        "frequency": "daily"
+    },
+    "weeklyReport": {
+        "enabled": true,
+        "day": "Monday",
+        "time": "10:00",
+        "timezone": "UTC",
+        "frequency": "weekly"
+    },
+    "endOfDaySummary": {
+        "enabled": true,
+        "time": "18:00",
+        "timezone": "UTC",
+        "frequency": "daily"
+    },
+    "taskReminders": {
+        "enabled": true,
+        "checkInterval": 60,
+        "remindMinutesBefore": 60
+    },
+    "meetingReminders": {
+        "enabled": true,
+        "checkInterval": 30,
+        "remindMinutesBefore": 30
+    }
+};
+
+// Team Configuration
+team = {
+    "timezone": "UTC",
+    "workingHours": {
+        "start": "09:00",
+        "end": "18:00"
+    },
+    "defaultLanguage": "en",
+    "slackIntegration": false,
+    "jiraIntegration": false
+};
+
+// Analytics Configuration
+analytics = {
+    "trackingEnabled": true,
+    "retentionDays": 90,
+    "metrics": [
+        "task_completion_rate",
+        "meeting_efficiency",
+        "standup_submission_rate",
+        "team_morale",
+        "productivity_score"
+    ]
+};
+
+// Notification Configuration
+notifications = {
+    "enabled": true,
+    "channels": [
+        "cliq_direct_message",
+        "cliq_channel_message",
+        "email"
+    ],
+    "priorities": {
+        "high": true,
+        "normal": true,
+        "low": false
+    },
+    "quietHours": {
+        "enabled": false,
+        "start": "19:00",
+        "end": "08:00"
+    }
+};
+
+// Error Handling Configuration
+errorHandling = {
+    "logLevel": "info",
+    "retryAttempts": 3,
+    "retryDelay": 1000,
+    "alertAdminsOnCritical": true,
+    "storeErrorLogs": true,
+    "errorLogRetention": 30
+};
+
+// Database Configuration
+database = {
+    "type": "zoho_creator",
+    "account": "${ZOHO_ACCOUNT_ID}",
+    "workspace": "${ZOHO_WORKSPACE_ID}",
+    "tables": {
+        "projects": "Projects",
+        "tasks": "Tasks",
+        "assignments": "Assignments",
+        "teamMembers": "Team_Members",
+        "meetings": "Meetings",
+        "standups": "Standups",
+        "errorLogs": "Error_Logs",
+        "teamPreferences": "Team_Preferences"
+    }
+};
+
+// Skills and Categories
+skills = {
+    "technical": [
+        "Backend Development",
+        "Frontend Development",
+        "DevOps",
+        "Database Administration",
+        "Quality Assurance"
+    ],
+    "business": [
+        "Project Management",
+        "Business Analysis",
+        "Documentation",
+        "Communication",
+        "Leadership"
+    ]
+};
+
+// Priority Levels
+priorities = {
+    "high": {
+        "weight": 3,
+        "color": "#FF0000",
+        "icon": "🔴"
+    },
+    "medium": {
+        "weight": 2,
+        "color": "#FFA500",
+        "icon": "🟠"
+    },
+    "low": {
+        "weight": 1,
+        "color": "#00AA00",
+        "icon": "🟢"
+    }
+};
+
+// Status Types
+statuses = {
+    "tasks": ["open", "in_progress", "completed", "blocked", "on_hold"],
+    "meetings": ["scheduled", "completed", "cancelled", "rescheduled"],
+    "projects": ["planning", "active", "on_hold", "completed", "cancelled"]
+};

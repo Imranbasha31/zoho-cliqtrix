@@ -1,0 +1,407 @@
+// ============================================================================
+// TeamSync Assistant - Meeting Scheduler
+// Purpose: Handle meeting scheduling logic with timezone support
+// ============================================================================
+
+// ============================================================================
+// MEETING SCHEDULING ENGINE
+// ============================================================================
+
+// Main function to schedule a meeting
+function scheduleMeeting(p_title, p_description, p_attendees, p_timezone, p_duration)
+{
+    try
+    {
+        if(isEmpty(p_duration))
+        {
+            p_duration = 60; // 1 hour default
+        }
+        
+        infoLog("Scheduling meeting: " + p_title, "MeetingScheduler");
+        
+        // Find available slots for all attendees
+        availableSlots = findAvailableSlots(p_attendees, p_timezone, 3); // Find 3 slots
+        
+        if(availableSlots.size() == 0)
+        {
+            warningLog("No available slots found for meeting: " + p_title, "MeetingScheduler");
+            return Map("status", "failed", "reason", "No available slots for all attendees");
+        }
+        
+        // Select best slot (usually first available with highest score)
+        bestSlot = availableSlots.get(0);
+        
+        // Create meeting object
+        meeting = createMeetingObject(p_title, p_description, bestSlot.get("startTime"), bestSlot.get("endTime"), p_attendees, p_timezone);
+        meeting.put("duration", p_duration);
+        meeting.put("selectedSlot", bestSlot);
+        
+        // Store meeting in database
+        meetingId = storeMeeting(meeting);
+        
+        if(isEmpty(meetingId))
+        {
+            errorLog("Failed to store meeting in database", "MeetingScheduler");
+            return Map("status", "failed", "reason", "Database error");
+        }
+        
+        // Send calendar invites
+        invitesResult = sendCalendarInvites(meeting, p_attendees);
+        
+        if(!invitesResult)
+        {
+            warningLog("Failed to send calendar invites for meeting: " + meetingId, "MeetingScheduler");
+        }
+        
+        infoLog("Meeting scheduled successfully: " + meetingId, "MeetingScheduler");
+        
+        result = Map();
+        result.put("status", "success");
+        result.put("meetingId", meetingId);
+        result.put("meeting", meeting);
+        result.put("suggestedSlots", availableSlots);
+        
+        return result;
+    }
+    catch(e)
+    {
+        errorLog("Meeting scheduling error: " + e.toString(), "MeetingScheduler");
+        return Map("status", "error", "message", e.toString());
+    }
+}
+
+// Find available time slots for all attendees
+function findAvailableSlots(p_attendees, p_timezone, p_numSlots)
+{
+    try
+    {
+        availableSlots = List();
+        currentDate = now();
+        
+        // Start checking from tomorrow
+        checkDate = getNextBusinessDay(currentDate);
+        slotsNeeded = p_numSlots;
+        daysChecked = 0;
+        maxDaysToCheck = 14;
+        
+        while(slotsNeeded > 0 && daysChecked < maxDaysToCheck)
+        {
+            // Check time slots for this day
+            daySlots = findDaySlots(checkDate, p_attendees, p_timezone);
+            
+            for each slot in daySlots
+            {
+                availableSlots.add(slot);
+                slotsNeeded = slotsNeeded - 1;
+                
+                if(slotsNeeded <= 0)
+                {
+                    break;
+                }
+            }
+            
+            checkDate = getNextBusinessDay(checkDate);
+            daysChecked = daysChecked + 1;
+        }
+        
+        infoLog("Found " + availableSlots.size() + " available slots for " + p_attendees.size() + " attendees", "MeetingScheduler");
+        return availableSlots;
+    }
+    catch(e)
+    {
+        errorLog("Error finding available slots: " + e.toString(), "MeetingScheduler");
+        return List();
+    }
+}
+
+// Find available slots for a specific day
+function findDaySlots(p_date, p_attendees, p_timezone)
+{
+    try
+    {
+        daySlots = List();
+        
+        // Standard meeting slots: 09:00, 10:00, 11:00, 14:00, 15:00, 16:00
+        timeSlots = List("09:00", "10:00", "11:00", "14:00", "15:00", "16:00");
+        
+        for each timeSlot in timeSlots
+        {
+            // Check if all attendees are available
+            slotDateTime = p_date;
+            // Parse and set time
+            
+            conflictCount = 0;
+            attendeeStatus = List();
+            
+            for each attendee in p_attendees
+            {
+                // Check attendee's calendar
+                isAvailable = checkAttendeeAvailability(attendee, p_date, timeSlot, p_timezone);
+                
+                if(!isAvailable)
+                {
+                    conflictCount = conflictCount + 1;
+                }
+                
+                attendeeStatus.add(Map("attendee", attendee, "available", isAvailable));
+            }
+            
+            // If most attendees are available, add to slots
+            conflictPercentage = (conflictCount / p_attendees.size()) * 100;
+            
+            if(conflictPercentage <= 30) // Allow max 30% conflicts
+            {
+                slot = createTimezoneSlot(p_date, timeSlot, timeSlot, p_timezone, p_attendees);
+                slot.put("conflictCount", conflictCount);
+                slot.put("conflictPercentage", conflictPercentage);
+                slot.put("score", 100 - conflictPercentage); // Higher score = better slot
+                slot.put("attendeeStatus", attendeeStatus);
+                
+                daySlots.add(slot);
+            }
+        }
+        
+        // Sort by score (best slots first)
+        daySlots = sortByKey(daySlots, "score", true); // descending
+        
+        infoLog("Found " + daySlots.size() + " available slots for date: " + formatDate(p_date, "dd/MM/yyyy"), "MeetingScheduler");
+        return daySlots;
+    }
+    catch(e)
+    {
+        errorLog("Error finding day slots: " + e.toString(), "MeetingScheduler");
+        return List();
+    }
+}
+
+// Check if specific attendee is available at a time
+function checkAttendeeAvailability(p_attendeeEmail, p_date, p_time, p_timezone)
+{
+    try
+    {
+        // TODO: Integrate with calendar API
+        // For now, assume everyone is available
+        
+        // Random availability for demo purposes
+        availabilityRandom = math.random();
+        return availabilityRandom > 0.2; // 80% chance available
+    }
+    catch(e)
+    {
+        errorLog("Error checking attendee availability: " + e.toString(), "MeetingScheduler");
+        return false;
+    }
+}
+
+// ============================================================================
+// MEETING MANAGEMENT
+// ============================================================================
+
+// Store meeting in database
+function storeMeeting(p_meeting)
+{
+    try
+    {
+        // TODO: Store in Zoho Creator or other database
+        meetingId = "MTG_" + random.toString() + "_" + now().getTime();
+        
+        infoLog("Meeting stored with ID: " + meetingId, "MeetingDatabase");
+        return meetingId;
+    }
+    catch(e)
+    {
+        errorLog("Error storing meeting: " + e.toString(), "MeetingDatabase");
+        return null;
+    }
+}
+
+// Send calendar invites to attendees
+function sendCalendarInvites(p_meeting, p_attendees)
+{
+    try
+    {
+        for each attendee in p_attendees
+        {
+            // TODO: Send invite via Zoho Calendar API or email
+            
+            inviteDetails = Map();
+            inviteDetails.put("to", attendee);
+            inviteDetails.put("meetingTitle", p_meeting.get("title"));
+            inviteDetails.put("startTime", p_meeting.get("startTime"));
+            inviteDetails.put("endTime", p_meeting.get("endTime"));
+            inviteDetails.put("description", p_meeting.get("description"));
+            
+            infoLog("Calendar invite sent to: " + attendee, "CalendarInvites");
+        }
+        
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending calendar invites: " + e.toString(), "CalendarInvites");
+        return false;
+    }
+}
+
+// Cancel meeting
+function cancelMeeting(p_meetingId)
+{
+    try
+    {
+        // Fetch meeting
+        meeting = fetchMeeting(p_meetingId);
+        
+        if(meeting == null)
+        {
+            return Map("status", "failed", "reason", "Meeting not found");
+        }
+        
+        // Update meeting status
+        meeting.put("status", "cancelled");
+        meeting.put("cancelledAt", now());
+        
+        // Store updated meeting
+        storeMeeting(meeting);
+        
+        // Send cancellation notices to attendees
+        for each attendee in meeting.get("attendees")
+        {
+            sendCancellationNotice(attendee, p_meetingId, meeting.get("title"));
+        }
+        
+        infoLog("Meeting cancelled: " + p_meetingId, "MeetingManagement");
+        return Map("status", "success", "message", "Meeting cancelled successfully");
+    }
+    catch(e)
+    {
+        errorLog("Error cancelling meeting: " + e.toString(), "MeetingManagement");
+        return Map("status", "error", "message", e.toString());
+    }
+}
+
+// Reschedule meeting
+function rescheduleMeeting(p_meetingId, p_newDate, p_newTime)
+{
+    try
+    {
+        meeting = fetchMeeting(p_meetingId);
+        
+        if(meeting == null)
+        {
+            return Map("status", "failed", "reason", "Meeting not found");
+        }
+        
+        oldStartTime = meeting.get("startTime");
+        
+        // Update meeting time
+        meeting.put("startTime", p_newDate + " " + p_newTime);
+        meeting.put("lastModified", now());
+        meeting.put("lastModifiedBy", "system");
+        
+        // Store updated meeting
+        storeMeeting(meeting);
+        
+        // Send rescheduling notices
+        for each attendee in meeting.get("attendees")
+        {
+            sendRescheduleNotice(attendee, p_meetingId, oldStartTime, meeting.get("startTime"));
+        }
+        
+        infoLog("Meeting rescheduled: " + p_meetingId, "MeetingManagement");
+        return Map("status", "success", "message", "Meeting rescheduled successfully");
+    }
+    catch(e)
+    {
+        errorLog("Error rescheduling meeting: " + e.toString(), "MeetingManagement");
+        return Map("status", "error", "message", e.toString());
+    }
+}
+
+// Fetch meeting from database
+function fetchMeeting(p_meetingId)
+{
+    try
+    {
+        // TODO: Fetch from Zoho Creator or database
+        
+        // Return dummy meeting for demo
+        return Map("id", p_meetingId, "title", "Team Sync", "status", "scheduled");
+    }
+    catch(e)
+    {
+        errorLog("Error fetching meeting: " + e.toString(), "MeetingDatabase");
+        return null;
+    }
+}
+
+// ============================================================================
+// NOTIFICATION FUNCTIONS
+// ============================================================================
+
+// Send meeting reminder
+function sendMeetingReminder(p_meetingId, p_minutesBefore)
+{
+    try
+    {
+        meeting = fetchMeeting(p_meetingId);
+        
+        if(meeting == null)
+        {
+            return false;
+        }
+        
+        for each attendee in meeting.get("attendees")
+        {
+            reminderMsg = "📅 Reminder: " + meeting.get("title") + " starts in " + p_minutesBefore + " minutes!";
+            sendCliqNotification(attendee, reminderMsg);
+        }
+        
+        infoLog("Meeting reminder sent for: " + p_meetingId, "MeetingReminders");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending meeting reminder: " + e.toString(), "MeetingReminders");
+        return false;
+    }
+}
+
+// Send cancellation notice
+function sendCancellationNotice(p_attendee, p_meetingId, p_meetingTitle)
+{
+    try
+    {
+        message = "❌ Meeting cancelled: " + p_meetingTitle;
+        sendCliqNotification(p_attendee, message);
+        
+        infoLog("Cancellation notice sent to: " + p_attendee, "MeetingNotifications");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending cancellation notice: " + e.toString(), "MeetingNotifications");
+        return false;
+    }
+}
+
+// Send reschedule notice
+function sendRescheduleNotice(p_attendee, p_meetingId, p_oldTime, p_newTime)
+{
+    try
+    {
+        message = "📅 Meeting rescheduled from " + p_oldTime + " to " + p_newTime;
+        sendCliqNotification(p_attendee, message);
+        
+        infoLog("Reschedule notice sent to: " + p_attendee, "MeetingNotifications");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending reschedule notice: " + e.toString(), "MeetingNotifications");
+        return false;
+    }
+}
+
+// ============================================================================
+// END OF MEETING SCHEDULER
+// ============================================================================

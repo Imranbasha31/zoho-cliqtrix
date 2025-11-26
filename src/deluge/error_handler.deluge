@@ -1,0 +1,366 @@
+// ============================================================================
+// TeamSync Assistant - Error Handler
+// Purpose: Handle errors and logging consistently
+// ============================================================================
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+// Main error handler
+function handleError(p_errorCode, p_message, p_stackTrace, p_function, p_severity)
+{
+    try
+    {
+        if(isEmpty(p_severity))
+        {
+            p_severity = "error";
+        }
+        
+        // Create error log
+        errorLog = createErrorLog(p_errorCode, p_message, p_stackTrace, p_function);
+        errorLog.put("severity", p_severity);
+        
+        // Store error log in database
+        storeErrorLog(errorLog);
+        
+        // Send alert for critical errors
+        if(p_severity == "critical")
+        {
+            sendErrorAlert(errorLog);
+        }
+        
+        info "[ERROR] " + p_errorCode + ": " + p_message;
+        
+        return errorLog;
+    }
+    catch(e)
+    {
+        info "[FATAL ERROR] Error handler itself failed: " + e.toString();
+        return null;
+    }
+}
+
+// ============================================================================
+// SPECIFIC ERROR HANDLERS
+// ============================================================================
+
+// Handle API errors
+function handleAPIError(p_errorCode, p_apiName, p_message)
+{
+    try
+    {
+        fullMessage = "API Error in " + p_apiName + ": " + p_message;
+        
+        handleError(p_errorCode, fullMessage, "", "APIHandler", "error");
+        
+        return Map("status", "error", "code", p_errorCode, "message", fullMessage);
+    }
+    catch(e)
+    {
+        errorLog("Error handling API error: " + e.toString(), "ErrorHandler");
+        return Map("status", "error");
+    }
+}
+
+// Handle database errors
+function handleDatabaseError(p_errorCode, p_message, p_query)
+{
+    try
+    {
+        fullMessage = "Database Error: " + p_message + " | Query: " + p_query;
+        
+        handleError(p_errorCode, fullMessage, "", "DatabaseHandler", "error");
+        
+        return Map("status", "error", "code", p_errorCode, "message", "Database operation failed");
+    }
+    catch(e)
+    {
+        errorLog("Error handling database error: " + e.toString(), "ErrorHandler");
+        return Map("status", "error");
+    }
+}
+
+// Handle validation errors
+function handleValidationError(p_field, p_reason)
+{
+    try
+    {
+        message = "Validation Error: " + p_field + " - " + p_reason;
+        
+        handleError("VALIDATION_ERROR", message, "", "ValidationHandler", "warning");
+        
+        return Map("status", "failed", "field", p_field, "reason", p_reason);
+    }
+    catch(e)
+    {
+        errorLog("Error handling validation error: " + e.toString(), "ErrorHandler");
+        return Map("status", "error");
+    }
+}
+
+// Handle authentication errors
+function handleAuthError(p_errorCode, p_message)
+{
+    try
+    {
+        handleError(p_errorCode, "Authentication Error: " + p_message, "", "AuthHandler", "critical");
+        
+        return Map("status", "unauthorized", "message", "Authentication failed");
+    }
+    catch(e)
+    {
+        errorLog("Error handling auth error: " + e.toString(), "ErrorHandler");
+        return Map("status", "error");
+    }
+}
+
+// Handle permission errors
+function handlePermissionError(p_userId, p_resource)
+{
+    try
+    {
+        message = "Permission denied for user " + p_userId + " to access " + p_resource;
+        
+        handleError("PERMISSION_DENIED", message, "", "PermissionHandler", "warning");
+        
+        return Map("status", "forbidden", "message", "You do not have permission to access this resource");
+    }
+    catch(e)
+    {
+        errorLog("Error handling permission error: " + e.toString(), "ErrorHandler");
+        return Map("status", "error");
+    }
+}
+
+// Handle timeout errors
+function handleTimeoutError(p_operation)
+{
+    try
+    {
+        message = "Operation timeout: " + p_operation + " exceeded time limit";
+        
+        handleError("TIMEOUT_ERROR", message, "", "TimeoutHandler", "error");
+        
+        return Map("status", "timeout", "message", "Operation took too long and was cancelled");
+    }
+    catch(e)
+    {
+        errorLog("Error handling timeout: " + e.toString(), "ErrorHandler");
+        return Map("status", "error");
+    }
+}
+
+// ============================================================================
+// ERROR LOG STORAGE
+// ============================================================================
+
+// Store error log in database
+function storeErrorLog(p_errorLog)
+{
+    try
+    {
+        // TODO: Store in Zoho Creator or error logging database
+        
+        errorLogId = "ERR_" + p_errorLog.get("errorCode") + "_" + now().getTime();
+        p_errorLog.put("id", errorLogId);
+        
+        info "[ERROR LOG STORED] " + errorLogId;
+        
+        return errorLogId;
+    }
+    catch(e)
+    {
+        info "[ERROR] Failed to store error log: " + e.toString();
+        return null;
+    }
+}
+
+// Retrieve error logs
+function getErrorLogs(p_filters)
+{
+    try
+    {
+        // TODO: Fetch from database with optional filters
+        
+        errorLogs = List();
+        
+        infoLog("Error logs retrieved", "ErrorLogRetrieval");
+        return errorLogs;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving error logs: " + e.toString(), "ErrorLogRetrieval");
+        return List();
+    }
+}
+
+// Get error statistics
+function getErrorStatistics(p_periodDays)
+{
+    try
+    {
+        if(isEmpty(p_periodDays))
+        {
+            p_periodDays = 7;
+        }
+        
+        errorLogs = getErrorLogs(Map("daysBack", p_periodDays));
+        
+        stats = Map();
+        stats.put("totalErrors", errorLogs.size());
+        stats.put("critical", 0);
+        stats.put("errors", 0);
+        stats.put("warnings", 0);
+        
+        for each log in errorLogs
+        {
+            severity = log.get("severity");
+            
+            if(severity == "critical")
+            {
+                stats.put("critical", stats.get("critical") + 1);
+            }
+            else if(severity == "error")
+            {
+                stats.put("errors", stats.get("errors") + 1);
+            }
+            else if(severity == "warning")
+            {
+                stats.put("warnings", stats.get("warnings") + 1);
+            }
+        }
+        
+        infoLog("Error statistics calculated for " + p_periodDays + " days", "ErrorStatistics");
+        return stats;
+    }
+    catch(e)
+    {
+        errorLog("Error calculating error statistics: " + e.toString(), "ErrorStatistics");
+        return Map();
+    }
+}
+
+// ============================================================================
+// ERROR ALERTS
+// ============================================================================
+
+// Send error alert for critical issues
+function sendErrorAlert(p_errorLog)
+{
+    try
+    {
+        // Get admin users
+        adminUsers = getAdminUsers();
+        
+        for each admin in adminUsers
+        {
+            alertMsg = "🚨 *Critical Error Alert*\n\n";
+            alertMsg = alertMsg + "*Error Code:* " + p_errorLog.get("errorCode") + "\n";
+            alertMsg = alertMsg + "*Message:* " + p_errorLog.get("message") + "\n";
+            alertMsg = alertMsg + "*Function:* " + p_errorLog.get("function") + "\n";
+            alertMsg = alertMsg + "*Time:* " + formatDate(p_errorLog.get("timestamp"), "dd/MM/yyyy HH:mm:ss") + "\n";
+            
+            sendCliqMessage(admin.get("userId"), alertMsg, "urgent");
+        }
+        
+        infoLog("Error alert sent to admins", "ErrorAlerts");
+        return true;
+    }
+    catch(e)
+    {
+        errorLog("Error sending error alert: " + e.toString(), "ErrorAlerts");
+        return false;
+    }
+}
+
+// ============================================================================
+// LOGGING FUNCTIONS
+// ============================================================================
+
+// Debug level logging
+function debugLog(p_message, p_module)
+{
+    if(isEmpty(p_module))
+    {
+        p_module = "General";
+    }
+    
+    timestamp = now().toString("dd/MM/yyyy HH:mm:ss");
+    logEntry = "[" + timestamp + "] [DEBUG] [" + p_module + "] " + p_message;
+    
+    info logEntry;
+    return logEntry;
+}
+
+// Info level logging
+function infoLog(p_message, p_module)
+{
+    if(isEmpty(p_module))
+    {
+        p_module = "General";
+    }
+    
+    timestamp = now().toString("dd/MM/yyyy HH:mm:ss");
+    logEntry = "[" + timestamp + "] [INFO] [" + p_module + "] " + p_message;
+    
+    info logEntry;
+    return logEntry;
+}
+
+// Warning level logging
+function warningLog(p_message, p_module)
+{
+    if(isEmpty(p_module))
+    {
+        p_module = "General";
+    }
+    
+    timestamp = now().toString("dd/MM/yyyy HH:mm:ss");
+    logEntry = "[" + timestamp + "] [WARN] [" + p_module + "] " + p_message;
+    
+    info logEntry;
+    return logEntry;
+}
+
+// Error level logging
+function errorLog(p_message, p_module)
+{
+    if(isEmpty(p_module))
+    {
+        p_module = "General";
+    }
+    
+    timestamp = now().toString("dd/MM/yyyy HH:mm:ss");
+    logEntry = "[" + timestamp + "] [ERROR] [" + p_module + "] " + p_message;
+    
+    info logEntry;
+    return logEntry;
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+// Get admin users
+function getAdminUsers()
+{
+    try
+    {
+        // TODO: Fetch admin users from database
+        
+        admins = List();
+        admins.add(Map("userId", "admin1", "name", "Administrator"));
+        
+        return admins;
+    }
+    catch(e)
+    {
+        errorLog("Error retrieving admin users: " + e.toString(), "AdminRetrieval");
+        return List();
+    }
+}
+
+// ============================================================================
+// END OF ERROR HANDLER
+// ============================================================================
